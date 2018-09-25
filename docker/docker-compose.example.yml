@@ -1,0 +1,37 @@
+version: '2.2'
+services:
+  rocket-order-bot-mongo:
+    image: mongo:3.0
+    container_name: rocket-order-bot-mongo
+    volumes:
+      - rocket-order-bot-mongo-storage:/etc/mongo
+    command: "--smallfiles"
+    networks:
+      main:
+        aliases:
+          - db
+
+  rocket-order-bot-chat:
+    image: rocket.chat:0.69
+    container_name: rocket-order-bot-chat
+    networks:
+      main:
+        aliases:
+          - rocket-order-bot-chat
+
+  rocket-order-bot-api:
+    expose:
+      - 3000
+    ports:
+      - 3000:3000
+    networks:
+      main:
+        aliases:
+          - rocket-order-bot-api
+    command: sh -c "npm install; npm run nodemon"
+
+volumes:
+  rocket-order-bot-mongo-storage:
+
+networks:
+  main:

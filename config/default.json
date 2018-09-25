@@ -1,0 +1,26 @@
+{
+  "server": {
+    "http": {
+      "port": 3000
+    }
+  },
+  "database": {
+    "order": {
+      "type": "sqlite",
+      "file": "./storage/database/order.sqlite"
+    }
+  },
+  "custom": {
+    "rocket": {
+      "url": "http://rocket-order-bot-chat:3000",
+      "api": "/api/v1"
+    },
+    "order": {
+      "start": "9:00",
+      "end": "9:50",
+      "attempt": 2,
+      "retry": "every 20 min",
+      "cancel": true
+    }
+  }
+}

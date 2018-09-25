@@ -1,0 +1,12 @@
+version: '2.2'
+services:
+  rocket-order-bot-api:
+    image: node:8.12.0-alpine
+    container_name: rocket-order-bot-api
+    user: "node:node"
+    working_dir: /app
+    environment:
+      - "NPM_REGISTRY=https://registry.npmjs.org"
+    volumes:
+      - $PWD:/app
+    command:  sh -c "npm install; npm start"
