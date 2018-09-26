@@ -5,6 +5,8 @@ services:
     container_name: rocket-order-bot-api
     user: "node:node"
     working_dir: /app
+    expose:
+    - 3000
     environment:
       - "NPM_REGISTRY=https://registry.npmjs.org"
     volumes:

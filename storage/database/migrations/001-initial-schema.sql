@@ -2,6 +2,11 @@
 -- Up
 --------------------------------------------------------------------------------
 
+create table if not exists settings (
+  key          varchar(225) primary key,
+  value        varchar(225)
+);
+
 create table if not exists person (
   id          integer primary key autoincrement,
   username    varchar(225),

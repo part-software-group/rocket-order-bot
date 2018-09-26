@@ -16,6 +16,7 @@
     "watch": "node ./scripts/watch.js"
   },
   "dependencies": {
+    "xlsx": "^0.14.0",
     "uuid": "^3.3.2",
     "async": "^2.6.1",
     "config": "^2.0.1",
