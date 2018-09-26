@@ -3,8 +3,8 @@
 --------------------------------------------------------------------------------
 
 create table if not exists settings (
-  key          varchar(225) primary key,
-  value        varchar(225)
+  key   varchar(225) primary key,
+  value varchar(225)
 );
 
 create table if not exists person (
@@ -30,16 +30,15 @@ create unique index if not exists lunch_list_order_date_uindex
   on lunch_list (order_date, delete_date);
 
 create table if not exists lunch_order (
-  id            integer primary key autoincrement,
-  person_id     integer,
-  lunch_list_id integer,
-  order_date    integer,
-  insert_date   integer,
-  delete_date   integer             default 0
+  id                varchar(225) primary key,
+  person_id         integer,
+  lunch_list_id     integer,
+  lunch             varchar(225),
+  rocket_message_id varchar(225),
+  rocket_room_id    varchar(225),
+  insert_date       integer,
+  delete_date       integer default 0
 );
-
-create unique index if not exists lunch_order_order_date_uindex
-  on lunch_order (order_date, delete_date);
 
 create table if not exists history (
   id        integer primary key autoincrement,

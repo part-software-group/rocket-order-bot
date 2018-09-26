@@ -17,9 +17,8 @@
     },
     "order": {
       "start": "9:00",
-      "end": "9:50",
+      "end": "9:53",
       "attempt": 2,
-      "retry": "every 20 min",
       "cancel": true
     }
   }

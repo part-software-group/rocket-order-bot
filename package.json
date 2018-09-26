@@ -24,7 +24,9 @@
     "sqlite": "^3.0.0",
     "request-promise": "^4.2.2",
     "bluebird": "^3.5.2",
-    "body-parser": "^1.18.3"
+    "persian-date": "^1.0.5",
+    "body-parser": "^1.18.3",
+    "node-schedule": "^1.3.0"
   },
   "devDependencies": {
     "@babel/cli": "7.0.0",

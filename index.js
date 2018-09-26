@@ -1,10 +1,10 @@
-const Xlsx = require('xlsx');
+const bodyParser = require('body-parser');
 const config = require('config');
+const sqlite = require('sqlite');
+const Excel = require('xlsx');
 const express = require('express');
-const db = require('sqlite');
 const Promise = require('bluebird');
 const Request = require('request-promise');
-const bodyParser = require('body-parser');
 /**
  * @property unlinkAsync
  */
@@ -17,7 +17,7 @@ app.use(bodyParser.json());
 
 app.get('/posts', async (req, res, next) => {
   try {
-    const posts = await db.all('SELECT * FROM person LIMIT 10');
+    const posts = await sqlite.all('SELECT * FROM person LIMIT 10');
     res.send(posts);
   } catch (err) {
     return next(err);
@@ -34,7 +34,8 @@ app.post('/hook/rocket', async (req, res) => {
   if (req.body.hasOwnProperty('message') && req.body.message.hasOwnProperty('file')) {
     const fileId = req.body.message.file._id;
     const fileName = req.body.message.file.name;
-    if (fileName.match(/^lunch_list_add_date.*/g)) downloadExcel(req.body.user_name, fileId, fileName);
+    if (fileName.match(/^lunch_list_add_date.*/g)) downloadExcelLunch(req.body.user_name, fileId, fileName);
+    if (fileName.match(/^person_list_add.*/g)) downloadExcelUser(req.body.user_name, fileId, fileName);
 
     res.setHeader('Content-Type', 'application/json');
     res.send('{"status": "success"}');
@@ -42,9 +43,10 @@ app.post('/hook/rocket', async (req, res) => {
   }
   const regex = {
     lunchListGet: /^\s*!lunch_list_get/,
-    lunchListGetDate: /^\s*!lunch_list_get_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8})/,
-    lunchListAddDate: /^\s*!lunch_list_add_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8})\s(.+)/,
-    lunchListDeleteDate: /^\s*!lunch_list_delete_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8}|all)/,
+    lunchListGetDate: /^\s*!lunch_list_get_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8}|[0-9]{2})/,
+    lunchListAddDate: /^\s*!lunch_list_add_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8}|[0-9]{2})\s(.+)/,
+    lunchListDeleteDate: /^\s*!lunch_list_delete_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8}|[0-9]{2}|all)/,
+    lunchTomorrow: /^\s*!lunch_tomorrow\s(no|pick)\s([a-z0-9-]+)\s([0-9]+)\s(.+)/,
   };
 
   let selectDate;
@@ -53,6 +55,8 @@ app.post('/hook/rocket', async (req, res) => {
   const lunchListGetDate = regex.lunchListGetDate.exec(message);
   const lunchListAddDate = regex.lunchListAddDate.exec(message);
   const lunchListDeleteDate = regex.lunchListDeleteDate.exec(message);
+  const lunchTomorrow = regex.lunchTomorrow.exec(message);
+
   switch (true) {
     case Boolean(lunchListGet):
       getLunchList(req.body.user_name);
@@ -73,97 +77,29 @@ app.post('/hook/rocket', async (req, res) => {
       selectDate = lunchListDeleteDate[1].replace(/[^0-9]+/, '');
       deleteLunchListDate(selectDate, req.body.user_name);
       break;
+    case Boolean(lunchTomorrow):
+      updateLunchTomorrow(lunchTomorrow[1], lunchTomorrow[2], lunchTomorrow[3], lunchTomorrow[4], req.body.user_name);
+      break;
   }
 
   res.setHeader('Content-Type', 'application/json');
   res.send('{"status": "success"}');
 });
 
-function getLunchList(username) {
-  db.all(`SELECT order_date, list FROM lunch_list WHERE delete_date = 0`)
-    .then((data) => sendRocketSuccess('lunch_list_get', username, [data]))
-    .catch((error) =>
-      sendRocketFail('error', username, [
-        {
-          key: 'code',
-          value: 'select_lunch_list_get',
-        },
-        {
-          key: 'database',
-          value: error.message.toString(),
-        },
-      ]),
-    );
-}
-
-function getLunchListDate(selectDate, username) {
-  db.all(`SELECT order_date, list FROM lunch_list WHERE order_date = ? AND delete_date = 0`, [selectDate])
-    .then((data) => sendRocketSuccess('lunch_list_get', username, [data]))
-    .catch((error) =>
-      sendRocketFail('error', username, [
-        {
-          key: 'code',
-          value: 'select_lunch_list_get_date',
-        },
-        {
-          key: 'database',
-          value: error.message.toString(),
-        },
-      ]),
-    );
-}
-
-function addLunchListDate(selectDate, selectList, username) {
-  db.run(`INSERT INTO lunch_list (id, order_date, list, insert_date) VALUES (null, ?, ?, ?)`, [
-    selectDate,
-    selectList,
-    getDate(),
-  ])
-    .then(() => sendRocketSuccess('lunch_list_add_date', username))
-    .catch((error) =>
-      sendRocketFail('error', username, [
-        {
-          key: 'code',
-          value: 'insert_lunch_list_add_date',
-        },
-        {
-          key: 'database',
-          value: error.message.toString(),
-        },
-      ]),
-    );
-}
-
-function deleteLunchListDate(selectDate, username) {
-  db.run(`UPDATE lunch_list SET delete_date = ? WHERE order_date = ? AND delete_date = 0`, [
-    getDate(),
-    Number(selectDate),
-  ])
-    .then(() => sendRocketSuccess('lunch_list_delete_date', username))
-    .catch((error) =>
-      sendRocketFail('error', username, [
-        {
-          key: 'code',
-          value: 'update_lunch_list_delete_date',
-        },
-        {
-          key: 'database',
-          value: error.message.toString(),
-        },
-      ]),
-    );
-}
-
-function downloadExcel(username, fileId, fileName) {
-  const req = Request({
+function downloadExcel(fileId, fileName) {
+  return Request({
     method: 'get',
     url: `${config.get('custom.rocket.url')}/file-upload/${fileId}/${fileName}`,
     headers: {
-      Cookie: 'rc_uid=hXX753szzaEcWzc5k; rc_token=BGT9z3k9wSnAuiHF3ZBnkHF-rXWoxDgL0ldP51N14Id',
+      Cookie: 'rc_uid=y79MateTAAr3LEz6E; rc_token=iz7eRC-_zr6lGxFryjfRdyb9HBvOt44cSMwaD_5GB7P',
     },
   });
+}
 
+function downloadExcelLunch(username, fileId, fileName) {
   const file = `./storage/temp/${fileId}_${fileName}`;
+  const req = downloadExcel(fileId, fileName);
+
   req
     .on('error', (error) =>
       sendRocketFail('error', username, [
@@ -181,21 +117,33 @@ function downloadExcel(username, fileId, fileName) {
     .pipe(fs.createWriteStream(file))
     .on('close', () => {
       // eslint-disable-next-line
-      const wb = Xlsx.readFile(file);
-      const result = Xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+      const wb = Excel.readFile(file);
+      const result = Excel.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
       const data = {
         text: [],
         param: [],
       };
-      for (let i = 0; i < result.length; i++) {
+
+      for (let i = 1; i < result.length; i++) {
+        if (result[i].length < 2) continue;
+
         data.text.push(`(null, ?, ?, ?)`);
         const [selectDate, ...selectList] = result[i];
-        data.param.push(selectDate);
+        data.param.push(selectDate.replace(/[^0-9]+/, ''));
         data.param.push(selectList.join('|'));
         data.param.push(getDate());
       }
 
-      db.run(`INSERT INTO lunch_list (id, order_date, list, insert_date) VALUES ${data.text.join(', ')}`, data.param)
+      if (!data.text.length)
+        return Promise.all([sendRocketWarning('excel_lunch_list_add_date', username), fs.unlinkAsync(file)]);
+
+      Promise.all([
+        sqlite.run(`UPDATE lunch_list SET delete_date = ? WHERE delete_date = 0`, [getDate()]),
+        sqlite.run(
+          `INSERT INTO lunch_list (id, order_date, list, insert_date) VALUES ${data.text.join(', ')}`,
+          data.param,
+        ),
+      ])
         .then(() => fs.unlinkAsync(file))
         .then(() => sendRocketSuccess('lunch_list_add_date', username))
         .catch((error) =>
@@ -211,6 +159,201 @@ function downloadExcel(username, fileId, fileName) {
           ]),
         );
     });
+}
+
+function downloadExcelUser(username, fileId, fileName) {
+  const file = `./storage/temp/${fileId}_${fileName}`;
+  const req = downloadExcel(fileId, fileName);
+
+  req
+    .on('error', (error) =>
+      sendRocketFail('error', username, [
+        {
+          key: 'code',
+          value: 'download_person_list_add',
+        },
+        {
+          key: 'database',
+          value: error.message.toString(),
+        },
+      ]),
+    )
+    // eslint-disable-next-line
+    .pipe(fs.createWriteStream(file))
+    .on('close', () => {
+      // eslint-disable-next-line
+      const wb = Excel.readFile(file);
+      const result = Excel.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+      const data = {
+        text: [],
+        param: [],
+      };
+
+      for (let i = 1; i < result.length; i++) {
+        if (!result[i].length) continue;
+
+        data.text.push(`(null, ?, ?)`);
+        data.param.push(result[i][0]);
+        data.param.push(getDate());
+      }
+
+      if (!data.text.length)
+        return Promise.all([sendRocketWarning('excel_person_list_add', username), fs.unlinkAsync(file)]);
+
+      Promise.all([
+        sqlite.run(`UPDATE person SET delete_date = ? WHERE delete_date = 0`, [getDate()]),
+        sqlite.run(`INSERT INTO person (id, username, insert_date) VALUES ${data.text.join(', ')}`, data.param),
+      ])
+        .then(() => fs.unlinkAsync(file))
+        .then(() => sendRocketSuccess('person_list_add', username))
+        .catch((error) =>
+          sendRocketFail('error', username, [
+            {
+              key: 'code',
+              value: 'excel_person_list_add',
+            },
+            {
+              key: 'database',
+              value: error.message.toString(),
+            },
+          ]),
+        );
+    });
+}
+
+function getLunchList(username) {
+  sqlite
+    .all(`SELECT order_date, list FROM lunch_list WHERE delete_date = 0`)
+    .then((data) => sendRocketSuccess('lunch_list_get', username, [data]))
+    .catch((error) =>
+      sendRocketFail('error', username, [
+        {
+          key: 'code',
+          value: 'select_lunch_list_get',
+        },
+        {
+          key: 'database',
+          value: error.message.toString(),
+        },
+      ]),
+    );
+}
+
+function getLunchListDate(selectDate, username) {
+  sqlite
+    .all(`SELECT order_date, list FROM lunch_list WHERE order_date = ? AND delete_date = 0`, [selectDate])
+    .then((data) => sendRocketSuccess('lunch_list_get', username, [data]))
+    .catch((error) =>
+      sendRocketFail('error', username, [
+        {
+          key: 'code',
+          value: 'select_lunch_list_get_date',
+        },
+        {
+          key: 'database',
+          value: error.message.toString(),
+        },
+      ]),
+    );
+}
+
+function addLunchListDate(selectDate, selectList, username) {
+  sqlite
+    .run(`INSERT INTO lunch_list (id, order_date, list, insert_date) VALUES (null, ?, ?, ?)`, [
+      selectDate,
+      selectList,
+      getDate(),
+    ])
+    .then(() => sendRocketSuccess('lunch_list_add_date', username))
+    .catch((error) =>
+      sendRocketFail('error', username, [
+        {
+          key: 'code',
+          value: 'insert_lunch_list_add_date',
+        },
+        {
+          key: 'database',
+          value: error.message.toString(),
+        },
+      ]),
+    );
+}
+
+function deleteLunchListDate(selectDate, username) {
+  sqlite
+    .run(`UPDATE lunch_list SET delete_date = ? WHERE order_date = ? AND delete_date = 0`, [
+      getDate(),
+      Number(selectDate),
+    ])
+    .then(() => sendRocketSuccess('lunch_list_delete_date', username))
+    .catch((error) =>
+      sendRocketFail('error', username, [
+        {
+          key: 'code',
+          value: 'update_lunch_list_delete_date',
+        },
+        {
+          key: 'database',
+          value: error.message.toString(),
+        },
+      ]),
+    );
+}
+
+function updateLunchTomorrow(type, oid, listRowId, lunch, username) {
+  let rocketMessageId;
+  let rocketRoomId;
+  sqlite
+    .all(`SELECT lunch_list_id, rocket_message_id, rocket_room_id FROM lunch_order WHERE id = ?`, [oid])
+    .then((data) => {
+      /**
+       * @property lunch_list_id
+       */
+      if (!data.length) return sendRocketFail('lunch_tomorrow', username);
+      else if (data.length && data[0].lunch_list_id) return sendRocketWarning('lunch_tomorrow', username);
+
+      // noinspection JSUnresolvedVariable
+      rocketMessageId = data[0].rocket_message_id;
+      // noinspection JSUnresolvedVariable
+      rocketRoomId = data[0].rocket_room_id;
+      return sqlite.run(`UPDATE lunch_order SET lunch_list_id = ?, lunch = ? WHERE id = ? AND lunch_list_id ISNULL`, [
+        listRowId,
+        lunch,
+        oid,
+      ]);
+    })
+    .then((data) => {
+      if (!data) return;
+
+      return Request({
+        method: 'post',
+        url: `${config.get('custom.rocket.url')}${config.get('custom.rocket.api')}/chat.delete`,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': 'y79MateTAAr3LEz6E',
+          'X-Auth-Token': 'iz7eRC-_zr6lGxFryjfRdyb9HBvOt44cSMwaD_5GB7P',
+        },
+        body: {
+          roomId: rocketRoomId,
+          msgId: rocketMessageId,
+          asUser: true,
+        },
+        json: true,
+      });
+    })
+    .then((data) => (data ? sendRocketSuccess('lunch_tomorrow', username) : null))
+    .catch((error) =>
+      sendRocketFail('error', username, [
+        {
+          key: 'code',
+          value: 'update_lunch_tomorrow',
+        },
+        {
+          key: 'database',
+          value: error.message.toString(),
+        },
+      ]),
+    );
 }
 
 function getDate() {
@@ -243,16 +386,16 @@ function getDate() {
 async function sendRocketSuccess(command, user, args) {
   const body = {};
   body.channel = user.substr(0, 1) !== '@' ? `@${user}` : user;
+  body.emoji = ':white_check_mark:';
   switch (command) {
     case 'lunch_list_add_date':
       body.msg = 'سفارش نهار به درستی ثبت گردید';
-      body.emoji = ':white_check_mark:';
       break;
     case 'lunch_list_delete_date':
       body.msg = 'سفارش نهار به درستی حذف گردید';
-      body.emoji = ':white_check_mark:';
       break;
     case 'lunch_list_get':
+      delete body.emoji;
       body.msg = 'لیست ناهار:';
       body.attachments = [];
       for (let i = 0; i < args[0].length; i++) {
@@ -298,6 +441,13 @@ async function sendRocketSuccess(command, user, args) {
         args[0][i].list.split(/\|/g).map((v) => body.attachments[i].fields.push({ value: v, short: true }));
       }
       break;
+    case 'person_list_add':
+      body.msg = 'کاربر به درستی ثبت گردید';
+      break;
+    case 'lunch_tomorrow':
+      body.msg =
+        'سفارش شما برای فردا ثبت شد.\n\n*درصورتی که می‌خواهید انتخاب خود را تغییر دهید به پشتیبانی مراجعه کنید.*';
+      break;
   }
 
   try {
@@ -306,8 +456,8 @@ async function sendRocketSuccess(command, user, args) {
       url: `${config.get('custom.rocket.url')}${config.get('custom.rocket.api')}/chat.postMessage`,
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': 'hXX753szzaEcWzc5k',
-        'X-Auth-Token': 'BGT9z3k9wSnAuiHF3ZBnkHF-rXWoxDgL0ldP51N14Id',
+        'X-User-Id': 'y79MateTAAr3LEz6E',
+        'X-Auth-Token': 'iz7eRC-_zr6lGxFryjfRdyb9HBvOt44cSMwaD_5GB7P',
       },
       body,
       json: true,
@@ -317,55 +467,51 @@ async function sendRocketSuccess(command, user, args) {
   }
 }
 
-// async function sendRocketWarning(command, args) {
-//   let body = {};
-//   switch (command) {
-//     case 'lunch_list_add_date':
-//       body = {
-//         channel: '@admin',
-//         msg: 'خطا در افزودن سفارش نهار!',
-//         emoji: ':warning:',
-//       };
-//       break;
-//     case 'error':
-//       body = {
-//         channel: '@admin',
-//         msg: 'Error: Fail execute code!',
-//         emoji: ':negative_squared_cross_mark:',
-//       };
-//   }
-//
-//   if (args.length) {
-//     body.attachments = [];
-//     body.attachments.push({
-//       color: 'yellow',
-//       fields: [],
-//     });
-//
-//     for (let i = 0; i < args.length; i++)
-//       body.attachments[0].fields.push({
-//         short: false,
-//         title: args[i].key,
-//         value: args[i].value,
-//       });
-//   }
-//
-//   try {
-//     await Request({
-//       method: 'post',
-//       url: `${config.get('custom.rocket.url')}${config.get('custom.rocket.api')}/chat.postMessage`,
-//       headers: {
-//         'Content-Type': 'application/json',
-//         'X-User-Id': 'hXX753szzaEcWzc5k',
-//         'X-Auth-Token': 'BGT9z3k9wSnAuiHF3ZBnkHF-rXWoxDgL0ldP51N14Id',
-//       },
-//       body,
-//       json: true,
-//     });
-//   } catch (e) {
-//     console.log(e);
-//   }
-// }
+async function sendRocketWarning(command, user, args) {
+  const body = {};
+  body.channel = user.substr(0, 1) !== '@' ? `@${user}` : user;
+  body.emoji = ':warning:';
+  switch (command) {
+    case 'excel_lunch_list_add_date':
+    case 'excel_person_list_add':
+      body.msg = 'هیچ داده‌ای در اکسل برای افزودن وجود ندارد!';
+      break;
+    case 'lunch_tomorrow':
+      body.msg = 'شما قبلا غذا ثبت کرده‌اید! لطفا برای ثبت مجدد با پشتبیانی در تماس باشد.';
+      break;
+  }
+
+  if (args && args.length) {
+    body.attachments = [];
+    body.attachments.push({
+      color: 'yellow',
+      fields: [],
+    });
+
+    for (let i = 0; i < args.length; i++)
+      body.attachments[0].fields.push({
+        short: false,
+        title: args[i].key,
+        value: args[i].value,
+      });
+  }
+
+  try {
+    await Request({
+      method: 'post',
+      url: `${config.get('custom.rocket.url')}${config.get('custom.rocket.api')}/chat.postMessage`,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': 'y79MateTAAr3LEz6E',
+        'X-Auth-Token': 'iz7eRC-_zr6lGxFryjfRdyb9HBvOt44cSMwaD_5GB7P',
+      },
+      body,
+      json: true,
+    });
+  } catch (e) {
+    console.log(e);
+  }
+}
 
 async function sendRocketFail(command, user, args) {
   const body = {};
@@ -375,12 +521,15 @@ async function sendRocketFail(command, user, args) {
     case 'lunch_list_add_date':
       body.msg = 'خطا در افزودن سفارش نهار!';
       break;
+    case 'lunch_tomorrow':
+      body.msg = 'چنین سفارشی وجود ندارد!';
+      break;
     case 'error':
       body.msg = 'خطا در اجرا کد!';
       break;
   }
 
-  if (args.length) {
+  if (args && args.length) {
     body.attachments = [];
     body.attachments.push({
       color: 'red',
@@ -401,8 +550,8 @@ async function sendRocketFail(command, user, args) {
       url: `${config.get('custom.rocket.url')}${config.get('custom.rocket.api')}/chat.postMessage`,
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': 'hXX753szzaEcWzc5k',
-        'X-Auth-Token': 'BGT9z3k9wSnAuiHF3ZBnkHF-rXWoxDgL0ldP51N14Id',
+        'X-User-Id': 'y79MateTAAr3LEz6E',
+        'X-Auth-Token': 'iz7eRC-_zr6lGxFryjfRdyb9HBvOt44cSMwaD_5GB7P',
       },
       body,
       json: true,
@@ -413,10 +562,15 @@ async function sendRocketFail(command, user, args) {
 }
 
 Promise.resolve()
-  .then(() => db.open(config.get('database.order.file'), { Promise }))
+  .then(() => sqlite.open(config.get('database.order.file'), { Promise }))
   // Update db schema to the latest version using SQL-based migrations
-  .then(() => db.migrate({ force: 'last', migrationsPath: './storage/database/migrations' }))
+  .then(() => sqlite.migrate({ force: 'last', migrationsPath: './storage/database/migrations' }))
   // Finally, launch the Node.js app
-  .finally(() => app.listen(port, () => console.log(`Example app listening on port ${port}!`)))
+  .finally(() =>
+    app.listen(port, () => {
+      require('./lib/schedule')(sqlite);
+      console.log(`Example app listening on port ${port}!`);
+    }),
+  )
   // Display error message if something went wrong
   .catch((err) => console.error(err.stack));
