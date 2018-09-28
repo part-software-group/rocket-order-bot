@@ -1,0 +1,12 @@
+{
+  "custom": {
+    "rocket": {
+      "url": "https://chat.partdp.ir",
+      "bot": {
+        "username": "orderBot",
+        "password": ""
+      },
+      "supports": []
+    }
+  }
+}

@@ -12,14 +12,24 @@
   },
   "custom": {
     "rocket": {
-      "url": "http://rocket-order-bot-chat:3000",
-      "api": "/api/v1"
+      "url": "",
+      "api": "/api/v1",
+      "bot": {
+        "username": "",
+        "password": ""
+      },
+      "supports": []
     },
     "order": {
-      "start": "9:00",
-      "end": "9:53",
+      "start": "09:20",
+      "end": "09:50",
       "attempt": 2,
       "cancel": true
+    },
+    "excelTemplate": {
+      "orderList": {
+        "fa": "./storage/private/order_list.fa.xlsx"
+      }
     }
   }
 }

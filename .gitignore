@@ -3,16 +3,12 @@
 .idea/
 .tests/
 package-lock.json
+
 storage/temp/*
 !storage/temp/.gitkeep
 
-lib/database/index.js
-lib/handler/execute.backup1.js
-lib/handler/execute.backup2.js
-lib/proxy/database.js
-services/income/*
-services/job/*
-services/person/*
+build/*
+!build/.gitkeep
 
 ### Local run server
 config/.local*

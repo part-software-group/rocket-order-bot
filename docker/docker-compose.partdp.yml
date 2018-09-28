@@ -1,0 +1,9 @@
+version: '2.2'
+services:
+  rocket-order-bot-api:
+    image: docker.loc:5000/node:8.12.0-alpine
+    network_mode: bridge
+    environment:
+      - "NODE_ENV=partdp"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro

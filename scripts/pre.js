@@ -11,6 +11,7 @@
 const Fs = require('fs');
 const Path = require('path');
 const Async = require('async');
+// eslint-disable-next-line
 const Execute = require('child_process').exec;
 
 /**
@@ -57,10 +58,12 @@ Async.autoInject(
       ),
 
     // Check exist file
+    // eslint-disable-next-line
     checkExist: (callback) => Fs.readFile(`./config/${NODE_ENV}.json`, (error) => callback(error)),
 
     // Check installed in environment, If not install start initial process
     readInstall: (callback) =>
+      // eslint-disable-next-line
       Fs.readFile(`./storage/temp/install`, 'utf8', (error, data) =>
         callback(null, {
           error,
@@ -119,7 +122,7 @@ Async.autoInject(
 
         const updated = data
           .split('\n')
-          .filter((v) => v.match(new RegExp(`${NODE_ENV}:v.+`)))
+          .filter((v) => v.match(RegExp(`${NODE_ENV}:v.+`)))
           .map((v) => v.split(':'));
         callback(null, updated);
       }),
@@ -219,4 +222,3 @@ Async.autoInject(
     process.exit();
   },
 );
-
