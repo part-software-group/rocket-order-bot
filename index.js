@@ -30,13 +30,11 @@ const SUPPORTS = config.get('custom.rocket.supports');
 const app = express();
 app.use(bodyParser.json());
 
-/**
- * @todo تشخیص نوع تاریخ و تبدلی تاریخ میلادی به شمسی برای افزودن لیست سفارشات در message و file
- */
 app.post('/hook/rocket', async (req, res) => {
   /**
    * @property _id
    * @property channel_id
+   * @property message_id
    * @property user_name
    */
   const message = req.body.text.toLowerCase();
@@ -118,7 +116,14 @@ app.post('/hook/rocket', async (req, res) => {
       else deleteLunchListDate(helper.convertDateToPersian(selectDate).format('YYYYMMDD'), req.body.user_name);
       break;
     case Boolean(match.lunchTomorrow):
-      updateLunchTomorrow(match.lunchTomorrow[1], match.lunchTomorrow[2], match.lunchTomorrow[3], req.body.user_name);
+      updateLunchTomorrow(
+        match.lunchTomorrow[1],
+        match.lunchTomorrow[2],
+        match.lunchTomorrow[3],
+        req.body.user_name,
+        req.body.channel_id,
+        req.body.message_id,
+      );
       break;
     case Boolean(match.lunchTomorrowReset):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
@@ -367,13 +372,13 @@ function deleteLunchListDate(selectDate, username) {
     );
 }
 
-function updateLunchTomorrow(type, oid, lunch, username) {
+function updateLunchTomorrow(type, oid, lunch, username, channelId, messageId) {
   let rocketMessageId;
   let rocketRoomId;
 
   sqlite
     .all(
-      `SELECT lunch_list_id, lunch, rocket_message_id, rocket_room_id FROM lunch_order WHERE id = ? AND delete_date = 0`,
+      `SELECT o.lunch_list_id, o.lunch, o.rocket_message_id, o.rocket_room_id, p.username FROM lunch_order o, person p WHERE o.person_id = p.id AND o.id = ? AND o.delete_date = 0`,
       [oid],
     )
     .then((data) => {
@@ -382,8 +387,10 @@ function updateLunchTomorrow(type, oid, lunch, username) {
        * @property lunch
        * @property rocket_message_id
        * @property rocket_room_id
+       * @property username
        */
       if (!data.length) return helper.sendRocketFail('lunch_tomorrow', username);
+      else if (data.length && data[0].username !== username) return helper.sendRocketFail('no_permission', username);
       else if (data.length && data[0].lunch) return helper.sendRocketWarning('lunch_tomorrow', username);
 
       rocketMessageId = data[0].rocket_message_id;
@@ -406,7 +413,7 @@ function updateLunchTomorrow(type, oid, lunch, username) {
 
       return true;
     })
-    .then((data) => (data ? helper.sendRocketSuccess('lunch_tomorrow', username, [lunch]) : null))
+    .then((data) => (data ? helper.sendRocketSuccess('lunch_tomorrow', username, [lunch, oid]) : null))
     .catch((error) =>
       helper.sendRocketFail('error', username, [
         {
@@ -418,7 +425,9 @@ function updateLunchTomorrow(type, oid, lunch, username) {
           value: error.message.toString(),
         },
       ]),
-    );
+    )
+    .then(() => helper.sendRocketDelete(channelId, messageId, false))
+    .catch((error) => logger.error(error.message.toString()));
 }
 
 function resetLunchTomorrow(oid, username) {
@@ -488,71 +497,73 @@ function getOrderList(roomId, username) {
     .then(([data, order, workbook]) => {
       const sheet = workbook.sheet('Sheet1');
 
-      const orderDate = data[0].order_date;
-      const orderList = data[0].list.split(/\|/g);
-      switch (orderDate) {
-        case 10:
-          sheet.cell('I6').value(`هفته فرد (شنبه)`);
-          break;
-        case 11:
-          sheet.cell('I6').value(`هفته فرد (یکشنبه)`);
-          break;
-        case 12:
-          sheet.cell('I6').value(`هفته فرد (دوشنبه)`);
-          break;
-        case 13:
-          sheet.cell('I6').value(`هفته فرد (سه‌شنبه)`);
-          break;
-        case 14:
-          sheet.cell('I6').value(`هفته فرد (چهارشنبه)`);
-          break;
-        case 20:
-          sheet.cell('I6').value(`هفته زوج (شنبه)`);
-          break;
-        case 21:
-          sheet.cell('I6').value(`هفته زوج (یکشنبه)`);
-          break;
-        case 22:
-          sheet.cell('I6').value(`هفته زوج (دوشنبه)`);
-          break;
-        case 23:
-          sheet.cell('I6').value(`هفته زوج (سه‌شنبه)`);
-          break;
-        case 24:
-          sheet.cell('I6').value(`هفته زوج (چهارشنبه)`);
-          break;
-        default:
-          sheet.cell('I6').value(new persianDate(helper.convertDateToPersian(orderDate)).format('dddd DD-MM-YYYY'));
-      }
+      if (data.length) {
+        const orderDate = data[0].order_date;
+        const orderList = data[0].list.split(/\|/g);
+        switch (orderDate) {
+          case 10:
+            sheet.cell('I6').value(`هفته فرد (شنبه)`);
+            break;
+          case 11:
+            sheet.cell('I6').value(`هفته فرد (یکشنبه)`);
+            break;
+          case 12:
+            sheet.cell('I6').value(`هفته فرد (دوشنبه)`);
+            break;
+          case 13:
+            sheet.cell('I6').value(`هفته فرد (سه‌شنبه)`);
+            break;
+          case 14:
+            sheet.cell('I6').value(`هفته فرد (چهارشنبه)`);
+            break;
+          case 20:
+            sheet.cell('I6').value(`هفته زوج (شنبه)`);
+            break;
+          case 21:
+            sheet.cell('I6').value(`هفته زوج (یکشنبه)`);
+            break;
+          case 22:
+            sheet.cell('I6').value(`هفته زوج (دوشنبه)`);
+            break;
+          case 23:
+            sheet.cell('I6').value(`هفته زوج (سه‌شنبه)`);
+            break;
+          case 24:
+            sheet.cell('I6').value(`هفته زوج (چهارشنبه)`);
+            break;
+          default:
+            sheet.cell('I6').value(new persianDate(helper.convertDateToPersian(orderDate)).format('dddd DD-MM-YYYY'));
+        }
 
-      for (let i = 0; i < order.length; i++) sheet.cell(`I${order[i].lunch ? 8 : 10}`).value(order[i].count);
+        for (let i = 0; i < order.length; i++) sheet.cell(`I${order[i].lunch ? 8 : 10}`).value(order[i].count);
 
-      sheet.cell('I12').value(orderList[0]);
-      const listPost = 12;
-      for (let i = 1; i < orderList.length; i++) {
-        const startPos = i * 2;
-        sheet.range(`G${listPost}:H${listPost + startPos + 1}`).merged(true);
-        sheet.range(`I${listPost + startPos}:K${listPost + startPos + 1}`).merged(true);
-        sheet
-          .cell(`I${listPost + startPos}`)
-          .value(orderList[i])
-          .style({
-            horizontalAlignment: 'center',
-            verticalAlignment: 'center',
-          });
-      }
+        sheet.cell('I12').value(orderList[0]);
+        const listPost = 12;
+        for (let i = 1; i < orderList.length; i++) {
+          const startPos = i * 2;
+          sheet.range(`G${listPost}:H${listPost + startPos + 1}`).merged(true);
+          sheet.range(`I${listPost + startPos}:K${listPost + startPos + 1}`).merged(true);
+          sheet
+            .cell(`I${listPost + startPos}`)
+            .value(orderList[i])
+            .style({
+              horizontalAlignment: 'center',
+              verticalAlignment: 'center',
+            });
+        }
 
-      let tablePos = 4;
-      for (let i = 0; i < data.length; i++) {
-        sheet.cell(`A${tablePos}`).value(i + 1);
-        sheet.cell(`B${tablePos}`).value(data[i].username);
-        sheet.cell(`C${tablePos}`).value(data[i].name);
-        sheet.cell(`D${tablePos}`).value(data[i].lunch);
-        sheet.range(`A${tablePos}:D${tablePos}`).style({ fontSize: 12 });
+        let tablePos = 4;
+        for (let i = 0; i < data.length; i++) {
+          sheet.cell(`A${tablePos}`).value(i + 1);
+          sheet.cell(`B${tablePos}`).value(data[i].username);
+          sheet.cell(`C${tablePos}`).value(data[i].name);
+          sheet.cell(`D${tablePos}`).value(data[i].lunch);
+          sheet.range(`A${tablePos}:D${tablePos}`).style({ fontSize: 12 });
 
-        if (!data[i].lunch) sheet.range(`A${tablePos}:D${tablePos}`).style('fill', 'bf0000');
+          if (!data[i].lunch) sheet.range(`A${tablePos}:D${tablePos}`).style('fill', 'bf0000');
 
-        tablePos++;
+          tablePos++;
+        }
       }
 
       return workbook.toFileAsync(output);
@@ -561,8 +572,6 @@ function getOrderList(roomId, username) {
      * @property rid
      */
     .then(() => helper.uploadFile(output, roomId, [pickDate]))
-    .delay(3000)
-    .then(() => fs.unlinkAsync(output))
     .catch((error) =>
       helper.sendRocketFail('error', username, [
         {
@@ -574,7 +583,10 @@ function getOrderList(roomId, username) {
           value: error.message.toString(),
         },
       ]),
-    );
+    )
+    .delay(60000)
+    .then(() => fs.unlinkAsync(output))
+    .catch((error) => logger.error(error.message.toString()));
 }
 
 Promise.resolve()
