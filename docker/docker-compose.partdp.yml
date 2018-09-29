@@ -3,6 +3,10 @@ services:
   rocket-order-bot-api:
     image: docker.loc:5000/node:8.12.0-alpine
     network_mode: bridge
+    restart: always
+    dns:
+      - 192.168.1.217
+      - 8.8.8.8
     environment:
       - "NODE_ENV=partdp"
     volumes:
