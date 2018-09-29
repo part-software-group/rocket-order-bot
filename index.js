@@ -61,8 +61,6 @@ app.post('/hook/rocket', async (req, res) => {
     getOrderList: /^\s*!get_order_list$/,
   };
 
-  let selectDate;
-  let selectList;
   const match = {
     date: regex.date.exec(message),
     getLunchList: regex.getLunchList.exec(message),
@@ -74,9 +72,24 @@ app.post('/hook/rocket', async (req, res) => {
     getOrderList: regex.getOrderList.exec(message),
   };
 
+  let selectDate;
+  let selectList;
+  const dateRequest = {
+    now: new persianDate(),
+    week: null,
+  };
+  dateRequest.now.formatPersian = false;
+  dateRequest.week = dateRequest.now.subtract('days', Number(dateRequest.now.format('d')) - 1);
+  dateRequest.now.formatPersian = true;
+  dateRequest.week.formatPersian = true;
+
   switch (true) {
     case Boolean(match.date):
-      await helper.sendRocketSuccess('date', req.body.user_name);
+      await helper.sendRocketSuccess('date', req.body.user_name, [
+        dateRequest.now.format('dddd DD-MM-YYYY'),
+        dateRequest.week.format('w'),
+        dateRequest.now.format('YYYY'),
+      ]);
       break;
     case Boolean(match.getLunchList):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
