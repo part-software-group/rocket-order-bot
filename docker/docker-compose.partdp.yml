@@ -9,5 +9,8 @@ services:
       - 8.8.8.8
     environment:
       - "NODE_ENV=partdp"
+      - "VIRTUAL_HOST="
+      - "LETSENCRYPT_HOST="
+      - "LETSENCRYPT_MAIL="
     volumes:
       - /etc/localtime:/etc/localtime:ro
