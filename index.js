@@ -510,39 +510,43 @@ function getOrderList(roomId, username) {
         const orderDate = data[0].order_date;
         switch (orderDate) {
           case 10:
-            sheet.cell('I6').value(`هفته فرد (شنبه)`);
+            sheet.cell('C4').value(`هفته فرد (شنبه)`);
             break;
           case 11:
-            sheet.cell('I6').value(`هفته فرد (یکشنبه)`);
+            sheet.cell('C4').value(`هفته فرد (یکشنبه)`);
             break;
           case 12:
-            sheet.cell('I6').value(`هفته فرد (دوشنبه)`);
+            sheet.cell('C4').value(`هفته فرد (دوشنبه)`);
             break;
           case 13:
-            sheet.cell('I6').value(`هفته فرد (سه‌شنبه)`);
+            sheet.cell('C4').value(`هفته فرد (سه‌شنبه)`);
             break;
           case 14:
-            sheet.cell('I6').value(`هفته فرد (چهارشنبه)`);
+            sheet.cell('C4').value(`هفته فرد (چهارشنبه)`);
             break;
           case 20:
-            sheet.cell('I6').value(`هفته زوج (شنبه)`);
+            sheet.cell('C4').value(`هفته زوج (شنبه)`);
             break;
           case 21:
-            sheet.cell('I6').value(`هفته زوج (یکشنبه)`);
+            sheet.cell('C4').value(`هفته زوج (یکشنبه)`);
             break;
           case 22:
-            sheet.cell('I6').value(`هفته زوج (دوشنبه)`);
+            sheet.cell('C4').value(`هفته زوج (دوشنبه)`);
             break;
           case 23:
-            sheet.cell('I6').value(`هفته زوج (سه‌شنبه)`);
+            sheet.cell('C4').value(`هفته زوج (سه‌شنبه)`);
             break;
           case 24:
-            sheet.cell('I6').value(`هفته زوج (چهارشنبه)`);
+            sheet.cell('C4').value(`هفته زوج (چهارشنبه)`);
             break;
           default:
-            sheet.cell('I6').value(new persianDate(helper.convertDateToPersian(orderDate)).format('dddd DD-MM-YYYY'));
+            sheet.cell('C4').value(new persianDate(helper.convertDateToPersian(orderDate)).format('dddd DD-MM-YYYY'));
         }
 
+        /**
+         *
+         * @type {Array}
+         */
         let noneRocketUser;
         try {
           // eslint-disable-next-line
@@ -558,6 +562,13 @@ function getOrderList(roomId, username) {
 
         const personLunch = noneRocketUser.concat(data);
 
+        let lunchList = [];
+        for (let i = 0; i < personLunch.length; i++) {
+          if (!personLunch[i].lunch) continue;
+          if (lunchList.indexOf(personLunch[i].lunch) === -1) lunchList.push(personLunch[i].lunch);
+        }
+        lunchList = lunchList.sort().reverse();
+
         sheet
           .cell(`I8`)
           .value(0)
@@ -567,25 +578,36 @@ function getOrderList(roomId, username) {
           .value(0)
           .formula(`=COUNTIF(D4:D${personLunch.length},"")`);
 
-        const lunchList = [];
-        for (let i = 0; i < personLunch.length; i++) {
-          if (!personLunch[i].lunch) continue;
-          if (lunchList.indexOf(personLunch[i].lunch) === -1) lunchList.push(personLunch[i].lunch);
-        }
-
+        let countIndex = 1;
         let tablePos = 4;
         for (let i = 0; i < personLunch.length; i++) {
-          const posLunch = lunchList.indexOf(personLunch[i].lunch);
+          if (personLunch[i].lunch) continue;
+          // const posLunch = lunchList.indexOf(personLunch[i].lunch);
 
-          sheet.cell(`A${tablePos}`).value(i + 1);
+          sheet.cell(`A${tablePos}`).value(countIndex++);
           sheet.cell(`B${tablePos}`).value(personLunch[i].username);
           sheet.cell(`C${tablePos}`).value(personLunch[i].name);
-          sheet.cell(`D${tablePos}`).value(personLunch[i].lunch ? posLunch : '');
+          // sheet.cell(`D${tablePos}`).value(personLunch[i].lunch ? posLunch : '');
+          sheet.cell(`D${tablePos}`).value('');
           sheet.range(`A${tablePos}:D${tablePos}`).style({ fontSize: 12 });
 
-          if (!personLunch[i].lunch) sheet.range(`A${tablePos}:D${tablePos}`).style('fill', 'bf0000');
+          sheet.range(`A${tablePos}:C${tablePos}`).style('fill', 'bf0000');
 
           tablePos++;
+        }
+
+        for (let i = 0; i < lunchList.length; i++) {
+          for (let j = 0; j < personLunch.length; j++) {
+            if (lunchList[i] !== personLunch[j].lunch) continue;
+
+            sheet.cell(`A${tablePos}`).value(countIndex++);
+            sheet.cell(`B${tablePos}`).value(personLunch[j].username);
+            sheet.cell(`C${tablePos}`).value(personLunch[j].name);
+            sheet.cell(`D${tablePos}`).value(i);
+            sheet.range(`A${tablePos}:D${tablePos}`).style({ fontSize: 12 });
+
+            tablePos++;
+          }
         }
 
         let listPost = 16;
