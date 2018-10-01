@@ -13,6 +13,7 @@ build/*
 ### Local run server
 config/.local*
 docker/docker-compose.local*
+storage/database/order.local*
 tests/report/
 
 ### Node template

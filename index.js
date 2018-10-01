@@ -501,18 +501,13 @@ function getOrderList(roomId, username) {
       `SELECT p.username, p.name, l.order_date, l.list, o.lunch FROM lunch_order o, person p, lunch_list l WHERE o.person_id = p.id AND o.lunch_list_id = l.id AND o.insert_date / 1000000000 = ? AND o.delete_date = 0`,
       [insertDate],
     ),
-    sqlite.all(
-      `SELECT count(o.id) as count, o.lunch FROM lunch_order o, person p, lunch_list l WHERE o.person_id = p.id AND o.lunch_list_id = l.id AND o.insert_date / 1000000000 = ? AND o.delete_date = 0 group by o.lunch isnull`,
-      [insertDate],
-    ),
     Populate.fromFileAsync(config.get('custom.excelTemplate.orderList.fa')),
   ])
-    .then(([data, order, workbook]) => {
+    .then(([data, workbook]) => {
       const sheet = workbook.sheet('Sheet1');
 
       if (data.length) {
         const orderDate = data[0].order_date;
-        const orderList = data[0].list.split(/\|/g);
         switch (orderDate) {
           case 10:
             sheet.cell('I6').value(`هفته فرد (شنبه)`);
@@ -548,34 +543,84 @@ function getOrderList(roomId, username) {
             sheet.cell('I6').value(new persianDate(helper.convertDateToPersian(orderDate)).format('dddd DD-MM-YYYY'));
         }
 
-        for (let i = 0; i < order.length; i++) sheet.cell(`I${order[i].lunch ? 8 : 10}`).value(order[i].count);
+        let noneRocketUser;
+        try {
+          // eslint-disable-next-line
+          noneRocketUser = require('./build/none-rocket-user.json');
 
-        sheet.cell('I12').value(orderList[0]);
-        const listPost = 12;
-        for (let i = 1; i < orderList.length; i++) {
-          const startPos = i * 2;
-          sheet.range(`G${listPost}:H${listPost + startPos + 1}`).merged(true);
-          sheet.range(`I${listPost + startPos}:K${listPost + startPos + 1}`).merged(true);
+          for (let i = 0; i < noneRocketUser.length; i++) {
+            noneRocketUser[i].username = '';
+            noneRocketUser[i].lunch = null;
+          }
+        } catch (e) {
+          noneRocketUser = [];
+        }
+
+        const personLunch = noneRocketUser.concat(data);
+
+        sheet
+          .cell(`I8`)
+          .value(0)
+          .formula(`=COUNTA(D4:D${personLunch.length})`);
+        sheet
+          .cell(`I10`)
+          .value(0)
+          .formula(`=COUNTIF(D4:D${personLunch.length},"")`);
+
+        const lunchList = [];
+        for (let i = 0; i < personLunch.length; i++) {
+          if (!personLunch[i].lunch) continue;
+          if (lunchList.indexOf(personLunch[i].lunch) === -1) lunchList.push(personLunch[i].lunch);
+        }
+
+        let tablePos = 4;
+        for (let i = 0; i < personLunch.length; i++) {
+          const posLunch = lunchList.indexOf(personLunch[i].lunch);
+
+          sheet.cell(`A${tablePos}`).value(i + 1);
+          sheet.cell(`B${tablePos}`).value(personLunch[i].username);
+          sheet.cell(`C${tablePos}`).value(personLunch[i].name);
+          sheet.cell(`D${tablePos}`).value(personLunch[i].lunch ? posLunch : '');
+          sheet.range(`A${tablePos}:D${tablePos}`).style({ fontSize: 12 });
+
+          if (!personLunch[i].lunch) sheet.range(`A${tablePos}:D${tablePos}`).style('fill', 'bf0000');
+
+          tablePos++;
+        }
+
+        let listPost = 16;
+        sheet.range(`G${listPost}:H${listPost + lunchList.length * 2 - 1}`).merged(true);
+
+        for (let i = 0; i < lunchList.length; i++) {
+          sheet.range(`I${listPost}:I${listPost + 1}`).merged(true);
           sheet
-            .cell(`I${listPost + startPos}`)
-            .value(orderList[i])
+            .cell(`I${listPost}`)
+            .value(i)
             .style({
               horizontalAlignment: 'center',
               verticalAlignment: 'center',
             });
-        }
 
-        let tablePos = 4;
-        for (let i = 0; i < data.length; i++) {
-          sheet.cell(`A${tablePos}`).value(i + 1);
-          sheet.cell(`B${tablePos}`).value(data[i].username);
-          sheet.cell(`C${tablePos}`).value(data[i].name);
-          sheet.cell(`D${tablePos}`).value(data[i].lunch);
-          sheet.range(`A${tablePos}:D${tablePos}`).style({ fontSize: 12 });
+          sheet.range(`J${listPost}:J${listPost + 1}`).merged(true);
+          sheet
+            .cell(`J${listPost}`)
+            .value(lunchList[i])
+            .style({
+              horizontalAlignment: 'center',
+              verticalAlignment: 'center',
+            });
 
-          if (!data[i].lunch) sheet.range(`A${tablePos}:D${tablePos}`).style('fill', 'bf0000');
+          sheet.range(`K${listPost}:K${listPost + 1}`).merged(true);
+          sheet
+            .cell(`K${listPost}`)
+            .value(0)
+            .style({
+              horizontalAlignment: 'center',
+              verticalAlignment: 'center',
+            })
+            .formula(`=COUNTIF(D4:D500,"${i}")`);
 
-          tablePos++;
+          listPost += 2;
         }
       }
 
