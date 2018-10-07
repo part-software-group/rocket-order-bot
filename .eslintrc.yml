@@ -63,6 +63,8 @@ rules:
   flowtype/use-flow-type: error
   flowtype/semi: off
 
+  node/no-extraneous-require: [error, {allowModules: ["library"]}]
+
   import/no-unresolved: [error, {commonjs: true, amd: true}]
   import/named: error
   import/namespace: error
@@ -222,6 +224,7 @@ rules:
   no-void: error
   no-warning-comments: off
   no-with: error
+  no-prototype-builtins: error
   newline-per-chained-call: ["error", { "ignoreChainWithDepth": 3 }]
   object-curly-spacing: [off, always]
   object-shorthand: [error, always]
@@ -231,6 +234,7 @@ rules:
   padding-line-between-statements: off
   prefer-const: error
   prefer-spread: off
+  prefer-template: error
   quote-props: off
   radix: error
   require-yield: off
@@ -243,6 +247,7 @@ rules:
   space-unary-ops: off
   spaced-comment: [error, always]
   strict: off
+  template-curly-spacing: error
   use-isnan: error
   valid-jsdoc: off
   valid-typeof: error

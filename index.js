@@ -38,7 +38,10 @@ app.post('/hook/rocket', async (req, res) => {
    * @property user_name
    */
   const message = req.body.text.toLowerCase();
-  if (req.body.hasOwnProperty('message') && req.body.message.hasOwnProperty('file')) {
+  if (
+    Object.prototype.hasOwnProperty.call(req.body, 'message') &&
+    Object.prototype.hasOwnProperty.call(req.body.message, 'file')
+  ) {
     if (SUPPORTS.indexOf(req.body.user_name) === -1) return helper.sendRocketFail('no_permission', req.body.user_name);
 
     const fileId = req.body.message.file._id;
@@ -51,14 +54,15 @@ app.post('/hook/rocket', async (req, res) => {
     return;
   }
   const regex = {
-    date: /^\s*!date$/,
-    getLunchList: /^\s*!get_lunch_list$/,
+    date: /^\s*!date\s*\r*\n*$/,
+    getLunchList: /^\s*!get_lunch_list\s*\r*\n*$/,
     getLunchListDate: /^\s*!get_lunch_list_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8}|[0-9]{2})/,
     setLunchListDate: /^\s*!set_lunch_list_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8}|[0-9]{2})\s(.+)/,
     removeLunchListDate: /^\s*!remove_lunch_list_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8}|[0-9]{2}|all)/,
-    lunchTomorrow: /^\s*!lunch_tomorrow\s(no|pick)\s([a-z0-9-]+)\s(.+)/,
-    lunchTomorrowReset: /^\s*!lunch_tomorrow_reset\s([a-z0-9-]+)/,
-    getOrderList: /^\s*!get_order_list$/,
+    lunchNext: /^\s*!lunch_next\s(no|pick)\s([a-z0-9-]+)\s(.+)/,
+    lunchNextAgain: /^\s*!lunch_next_again\s*\r*\n*/,
+    lunchNextReset: /^\s*!lunch_next_reset\s([a-z0-9-]+)/,
+    getOrderList: /^\s*!get_order_list\s*\r*\n*$/,
   };
 
   const match = {
@@ -67,8 +71,9 @@ app.post('/hook/rocket', async (req, res) => {
     getLunchListDate: regex.getLunchListDate.exec(message),
     setLunchListDate: regex.setLunchListDate.exec(message),
     removeLunchListDate: regex.removeLunchListDate.exec(message),
-    lunchTomorrow: regex.lunchTomorrow.exec(message),
-    lunchTomorrowReset: regex.lunchTomorrowReset.exec(message),
+    lunchNext: regex.lunchNext.exec(message),
+    lunchNextAgain: regex.lunchNextAgain.exec(message),
+    lunchNextReset: regex.lunchNextReset.exec(message),
     getOrderList: regex.getOrderList.exec(message),
   };
 
@@ -128,21 +133,27 @@ app.post('/hook/rocket', async (req, res) => {
       if (selectDate < 100) deleteLunchListDate(selectDate, req.body.user_name);
       else deleteLunchListDate(helper.convertDateToPersian(selectDate).format('YYYYMMDD'), req.body.user_name);
       break;
-    case Boolean(match.lunchTomorrow):
-      updateLunchTomorrow(
-        match.lunchTomorrow[1],
-        match.lunchTomorrow[2],
-        match.lunchTomorrow[3],
+    case Boolean(match.lunchNext):
+      updateLunchNext(
+        match.lunchNext[1],
+        match.lunchNext[2],
+        match.lunchNext[3],
         req.body.user_name,
         req.body.channel_id,
         req.body.message_id,
       );
       break;
-    case Boolean(match.lunchTomorrowReset):
+    case Boolean(match.lunchNextAgain):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
-      resetLunchTomorrow(match.lunchTomorrowReset[1], req.body.user_name);
+      againLunchNext(req.body.user_name);
+      break;
+    case Boolean(match.lunchNextReset):
+      if (SUPPORTS.indexOf(req.body.user_name) === -1)
+        return helper.sendRocketFail('no_permission', req.body.user_name);
+
+      resetLunchNext(match.lunchNextReset[1], req.body.user_name);
       break;
     case Boolean(match.getOrderList):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
@@ -385,7 +396,7 @@ function deleteLunchListDate(selectDate, username) {
     );
 }
 
-function updateLunchTomorrow(type, oid, lunch, username, channelId, messageId) {
+function updateLunchNext(type, oid, lunch, username, channelId, messageId) {
   let rocketMessageId;
   let rocketRoomId;
 
@@ -402,9 +413,9 @@ function updateLunchTomorrow(type, oid, lunch, username, channelId, messageId) {
        * @property rocket_room_id
        * @property username
        */
-      if (!data.length) return helper.sendRocketFail('lunch_tomorrow', username);
+      if (!data.length) return helper.sendRocketFail('lunch_next', username);
       else if (data.length && data[0].username !== username) return helper.sendRocketFail('no_permission', username);
-      else if (data.length && data[0].lunch) return helper.sendRocketWarning('lunch_tomorrow', username);
+      else if (data.length && data[0].lunch) return helper.sendRocketWarning('lunch_next', username);
 
       rocketMessageId = data[0].rocket_message_id;
       rocketRoomId = data[0].rocket_room_id;
@@ -413,9 +424,9 @@ function updateLunchTomorrow(type, oid, lunch, username, channelId, messageId) {
     })
     .then((data) => {
       if (!data) return;
-      else if (!data.length) return helper.sendRocketFail('lunch_tomorrow', username);
+      else if (!data.length) return helper.sendRocketFail('lunch_next', username);
       else if (type !== 'no' && data[0].list.split(/\|/g).indexOf(lunch) === -1)
-        return helper.sendRocketFail('lunch_tomorrow_list', username);
+        return helper.sendRocketFail('lunch_next_list', username);
 
       return sqlite.run(`UPDATE lunch_order SET lunch = ? WHERE id = ? AND lunch ISNULL`, [lunch, oid]);
     })
@@ -426,12 +437,12 @@ function updateLunchTomorrow(type, oid, lunch, username, channelId, messageId) {
 
       return true;
     })
-    .then((data) => (data ? helper.sendRocketSuccess('lunch_tomorrow', username, [lunch, oid]) : null))
+    .then((data) => (data ? helper.sendRocketSuccess('lunch_next', username, [lunch, oid]) : null))
     .catch((error) =>
       helper.sendRocketFail('error', username, [
         {
           key: 'code',
-          value: 'update_lunch_tomorrow',
+          value: 'update_lunch_next',
         },
         {
           key: 'database',
@@ -443,7 +454,65 @@ function updateLunchTomorrow(type, oid, lunch, username, channelId, messageId) {
     .catch((error) => logger.error(error.message.toString()));
 }
 
-function resetLunchTomorrow(oid, username) {
+function againLunchNext(username) {
+  const insertDate = Number(helper.getDate().substr(0, 8));
+  let start = false;
+  let orderInfo = [];
+
+  sqlite
+    .all(
+      `SELECT o.id, o.person_id, p.username, o.lunch_list_id, l.list FROM lunch_order o, person p, lunch_list l WHERE o.person_id = p.id AND o.lunch_list_id = l.id AND o.insert_date / 1000000000 = ? AND o.lunch ISNULL AND o.delete_date = 0`,
+      [insertDate],
+    )
+    .then((data) => {
+      if (!data.length) return helper.sendRocketWarning('lunch_next_again', username);
+
+      orderInfo = data;
+      for (let i = 0; i < orderInfo.length; i++) {
+
+      }
+      // /**
+      //  * @property person_id
+      //  * @type {{id: *, username: string}}
+      //  */
+      // info.person = { id: data[0].person_id, username: data[0].username };
+      // info.list = [];
+      // info.list.push({ id: data[0].lunch_list_id, list: data[0].list });
+      start = true;
+
+      return sqlite.run('BEGIN');
+    })
+    .then(
+      () => (start ? sqlite.run(`UPDATE lunch_order SET delete_date = ? WHERE insert_date / 1000000000 = ? AND lunch ISNULL AND delete_date = 0`, [helper.getDate(), insertDate]) : null),
+    )
+    .then(() => {
+      if (!start) return;
+
+      orderInfo.map((v) => helper.sendLunchRequest(sqlite, v.))
+    })
+    .then(() => (start ? helper.sendLunchRequest(sqlite, orderInfo.person, orderInfo.list, []) : null))
+    .then(() => (start ? sqlite.run('COMMIT') : null))
+    .catch((error) => {
+      if (!start) return;
+
+      return Promise.all([
+        sqlite.run('ROLLBACK'),
+        helper.sendRocketFail('error', username, [
+          {
+            key: 'code',
+            value: 'reset_lunch_next',
+          },
+          {
+            key: 'database',
+            value: error.message.toString(),
+          },
+        ]),
+      ]);
+    })
+    .catch((error) => logger.error(error.message.toString()));
+}
+
+function resetLunchNext(oid, username) {
   let start = false;
   const info = {};
 
@@ -453,7 +522,7 @@ function resetLunchTomorrow(oid, username) {
       [oid],
     )
     .then((data) => {
-      if (!data.length) return helper.sendRocketFail('lunch_tomorrow', username);
+      if (!data.length) return helper.sendRocketFail('lunch_next', username);
 
       /**
        * @property person_id
@@ -479,7 +548,7 @@ function resetLunchTomorrow(oid, username) {
         helper.sendRocketFail('error', username, [
           {
             key: 'code',
-            value: 'reset_lunch_tomorrow',
+            value: 'reset_lunch_next',
           },
           {
             key: 'database',
@@ -596,7 +665,7 @@ function getOrderList(roomId, username) {
           tablePos++;
         }
 
-        for (let i = 0; i < lunchList.length; i++) {
+        for (let i = 0; i < lunchList.length; i++)
           for (let j = 0; j < personLunch.length; j++) {
             if (lunchList[i] !== personLunch[j].lunch) continue;
 
@@ -608,7 +677,6 @@ function getOrderList(roomId, username) {
 
             tablePos++;
           }
-        }
 
         let listPost = 16;
         sheet.range(`G${listPost}:H${listPost + lunchList.length * 2 - 1}`).merged(true);
