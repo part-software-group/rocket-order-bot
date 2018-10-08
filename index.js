@@ -519,7 +519,16 @@ function againLunchNext(username) {
   function sendNewLunchAgain(oid, person, list) {
     return sqlite
       .run(`UPDATE lunch_order SET delete_date = ? WHERE id = ?`, [helper.getDate(), oid])
-      .then(() => helper.sendLunchRequest(sqlite, person, list, []));
+      .then(() => helper.sendLunchRequest(sqlite, person, list, []))
+      .then((data) => {
+        if (!data) return;
+
+        setTimeout(() => {
+          helper.deleteLunchRequest(data.message.rid, data.message._id);
+        }, 5 * 60 * 1000);
+
+        return true;
+      });
   }
 }
 
