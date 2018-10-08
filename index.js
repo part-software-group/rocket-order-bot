@@ -437,7 +437,10 @@ function updateLunchNext(type, oid, lunch, username, channelId, messageId) {
 
       return true;
     })
-    .then((data) => (data ? helper.sendRocketSuccess('lunch_next', username, [lunch, oid]) : null))
+    .then(
+      (data) =>
+        data ? helper.sendRocketSuccess('lunch_next', username, [lunch, oid, helper.nextDateInfo(true)]) : null,
+    )
     .catch((error) =>
       helper.sendRocketFail('error', username, [
         {
@@ -455,9 +458,22 @@ function updateLunchNext(type, oid, lunch, username, channelId, messageId) {
 }
 
 function againLunchNext(username) {
+  const [endHour, endMinute] = config.get('custom.order.end').split(':');
+
+  const now = new persianDate();
+  const end = new persianDate();
+
+  end.hours(Number(endHour));
+  end.minutes(Number(endMinute));
+
+  now.formatPersian = false;
+  end.formatPersian = false;
+
+  if (end.unix() - now.unix() < 0) return helper.sendRocketWarning('lunch_next_again_process', username);
+
   const insertDate = Number(helper.getDate().substr(0, 8));
+  const orderInfo = [];
   let start = false;
-  let orderInfo = [];
 
   sqlite
     .all(
@@ -467,30 +483,19 @@ function againLunchNext(username) {
     .then((data) => {
       if (!data.length) return helper.sendRocketWarning('lunch_next_again', username);
 
-      orderInfo = data;
-      for (let i = 0; i < orderInfo.length; i++) {
+      // orderInfo = data;
+      for (let i = 0; i < data.length; i++)
+        orderInfo.push({
+          id: data[i].id,
+          person: { id: data[i].person_id, username: data[i].username },
+          list: [{ id: data[i].lunch_list_id, list: data[i].list }],
+        });
 
-      }
-      // /**
-      //  * @property person_id
-      //  * @type {{id: *, username: string}}
-      //  */
-      // info.person = { id: data[0].person_id, username: data[0].username };
-      // info.list = [];
-      // info.list.push({ id: data[0].lunch_list_id, list: data[0].list });
       start = true;
 
       return sqlite.run('BEGIN');
     })
-    .then(
-      () => (start ? sqlite.run(`UPDATE lunch_order SET delete_date = ? WHERE insert_date / 1000000000 = ? AND lunch ISNULL AND delete_date = 0`, [helper.getDate(), insertDate]) : null),
-    )
-    .then(() => {
-      if (!start) return;
-
-      orderInfo.map((v) => helper.sendLunchRequest(sqlite, v.))
-    })
-    .then(() => (start ? helper.sendLunchRequest(sqlite, orderInfo.person, orderInfo.list, []) : null))
+    .then(() => orderInfo.map((v) => sendNewLunchAgain(v.id, v.person, v.list)))
     .then(() => (start ? sqlite.run('COMMIT') : null))
     .catch((error) => {
       if (!start) return;
@@ -510,6 +515,12 @@ function againLunchNext(username) {
       ]);
     })
     .catch((error) => logger.error(error.message.toString()));
+
+  function sendNewLunchAgain(oid, person, list) {
+    return sqlite
+      .run(`UPDATE lunch_order SET delete_date = ? WHERE id = ?`, [helper.getDate(), oid])
+      .then(() => helper.sendLunchRequest(sqlite, person, list, []));
+  }
 }
 
 function resetLunchNext(oid, username) {
