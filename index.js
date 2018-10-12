@@ -473,7 +473,7 @@ function againLunchNext(username) {
   now.formatPersian = false;
   end.formatPersian = false;
 
-  if (end.unix() - now.unix() < 0) return helper.sendRocketWarning('lunch_next_again_process', username);
+  // if (end.unix() - now.unix() < 0) return helper.sendRocketWarning('lunch_next_again_process', username);
 
   const insertDate = Number(helper.getDate().substr(0, 8));
   const orderInfo = [];
