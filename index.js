@@ -18,6 +18,11 @@ const persianDate = require('persian-date');
 const fs = Promise.promisifyAll(require('fs'));
 const helper = require('./lib/helper');
 const logger = require('./lib/log/winston');
+/**
+ *
+ * @type {*[]}
+ */
+const command = require('./lib/command');
 
 const PORT = config.get('server.http.port');
 const SUPPORTS = config.get('custom.rocket.supports');
@@ -53,29 +58,6 @@ app.post('/hook/rocket', async (req, res) => {
     res.send('{"status": "success"}');
     return;
   }
-  const regex = {
-    date: /^\s*!date\s*\r*\n*$/,
-    getLunchList: /^\s*!get_lunch_list\s*\r*\n*$/,
-    getLunchListDate: /^\s*!get_lunch_list_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8}|[0-9]{2})/,
-    setLunchListDate: /^\s*!set_lunch_list_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8}|[0-9]{2})\s(.+)/,
-    removeLunchListDate: /^\s*!remove_lunch_list_date\s+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}.[0-9]{2}.[0-9]{2}|[0-9]{4}\/[0-9]{2}\/[0-9]{2}|[0-9]{8}|[0-9]{2}|all)/,
-    lunchNext: /^\s*!lunch_next\s(no|pick)\s([a-z0-9-]+)\s(.+)/,
-    lunchNextAgain: /^\s*!lunch_next_again\s*\r*\n*/,
-    lunchNextReset: /^\s*!lunch_next_reset\s([a-z0-9-]+)/,
-    getOrderList: /^\s*!get_order_list\s*\r*\n*$/,
-  };
-
-  const match = {
-    date: regex.date.exec(message),
-    getLunchList: regex.getLunchList.exec(message),
-    getLunchListDate: regex.getLunchListDate.exec(message),
-    setLunchListDate: regex.setLunchListDate.exec(message),
-    removeLunchListDate: regex.removeLunchListDate.exec(message),
-    lunchNext: regex.lunchNext.exec(message),
-    lunchNextAgain: regex.lunchNextAgain.exec(message),
-    lunchNextReset: regex.lunchNextReset.exec(message),
-    getOrderList: regex.getOrderList.exec(message),
-  };
 
   let selectDate;
   let selectList;
@@ -88,7 +70,29 @@ app.post('/hook/rocket', async (req, res) => {
   dateRequest.now.formatPersian = true;
   dateRequest.week.formatPersian = true;
 
+  const regex = command(req.body.user_name);
+  const regexKeys = Object.keys(regex);
+  /**
+   *
+   * @property help
+   * @property date
+   * @property getLunchList
+   * @property getLunchListDate
+   * @property setLunchListDate
+   * @property removeLunchListDate
+   * @property lunchNext
+   * @property lunchNextAgain
+   * @property lunchNextReset
+   * @property getOrderList
+   * @type {{}}
+   */
+  const match = {};
+  for (let i = 0; i < regexKeys.length; i++) match[regexKeys[i]] = regex[regexKeys[i]].command.exec(message);
+
   switch (true) {
+    case Boolean(match.help):
+      await helper.sendRocketSuccess('help', req.body.user_name, [regex]);
+      break;
     case Boolean(match.date):
       await helper.sendRocketSuccess('date', req.body.user_name, [
         dateRequest.now.format('dddd DD-MM-YYYY'),
@@ -469,7 +473,7 @@ function againLunchNext(username) {
   now.formatPersian = false;
   end.formatPersian = false;
 
-  if (end.unix() - now.unix() < 0) return helper.sendRocketWarning('lunch_next_again_process', username);
+  // if (end.unix() - now.unix() < 0) return helper.sendRocketWarning('lunch_next_again_process', username);
 
   const insertDate = Number(helper.getDate().substr(0, 8));
   const orderInfo = [];
