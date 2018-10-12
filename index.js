@@ -501,6 +501,7 @@ function againLunchNext(username) {
     })
     .then(() => orderInfo.map((v) => sendNewLunchAgain(v.id, v.person, v.list)))
     .then(() => (start ? sqlite.run('COMMIT') : null))
+    .then(() => (start ? helper.sendRocketSuccess('lunch_next_again', username, [orderInfo.length]) : null))
     .catch((error) => {
       if (!start) return;
 
@@ -564,6 +565,7 @@ function resetLunchNext(oid, username) {
     )
     .then(() => (start ? helper.sendLunchRequest(sqlite, info.person, info.list, []) : null))
     .then(() => (start ? sqlite.run('COMMIT') : null))
+    .then(() => (start ? helper.sendRocketSuccess('lunch_next_reset', username, [oid]) : null))
     .catch((error) => {
       if (!start) return;
 
