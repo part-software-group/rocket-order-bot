@@ -86,6 +86,7 @@ app.post('/hook/rocket', async (req, res) => {
    * @property getOrderList
    * @property getUser
    * @property setUser
+   * @property removeUser
    * @type {{}}
    */
   const match = {};
@@ -178,6 +179,12 @@ app.post('/hook/rocket', async (req, res) => {
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
       setUser({ name: match.setUser[1], username: match.setUser[2] }, req.body.user_name);
+      break;
+    case Boolean(match.removeUser):
+      if (SUPPORTS.indexOf(req.body.user_name) === -1)
+        return helper.sendRocketFail('no_permission', req.body.user_name);
+
+      removeUser(match.removeUser[1], req.body.user_name);
       break;
   }
 
@@ -812,7 +819,7 @@ function setUser(person, username) {
 
       return helper.sendRocketFail('error', username, output);
     })
-    .then(() => (start ? sqlite.all(`INSERT INTO person (username, name, insert_date) VALUES (?, ?, ?)`, param) : null))
+    .then(() => (start ? sqlite.run(`INSERT INTO person (username, name, insert_date) VALUES (?, ?, ?)`, param) : null))
     .then(() => (start ? helper.sendRocketSuccess('set_user', username) : null))
     .catch((error) =>
       helper.sendRocketFail('error', username, [
@@ -827,6 +834,30 @@ function setUser(person, username) {
       ]),
     )
     .catch((error) => logger.error(error.message.toString()));
+}
+
+function removeUser(uid, username) {
+  const id = !isNaN(Number(uid)) ? Number(uid) : -1;
+
+  sqlite
+    .run(`UPDATE person SET delete_date = ? WHERE id = ? AND delete_date = 0`, [helper.getDate(), id])
+    .then((data) => {
+      const func = data.stmt.changes === 0 ? helper.sendRocketWarning : helper.sendRocketSuccess;
+
+      return func('remove_user', username);
+    })
+    .catch((error) =>
+      helper.sendRocketFail('error', username, [
+        {
+          key: 'code',
+          value: 'get_user',
+        },
+        {
+          key: 'database',
+          value: error.message.toString(),
+        },
+      ]),
+    );
 }
 
 Promise.resolve()
