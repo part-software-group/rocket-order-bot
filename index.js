@@ -84,6 +84,7 @@ app.post('/hook/rocket', async (req, res) => {
    * @property lunchNextAgain
    * @property lunchNextReset
    * @property getOrderList
+   * @property getUser
    * @type {{}}
    */
   const match = {};
@@ -164,6 +165,12 @@ app.post('/hook/rocket', async (req, res) => {
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
       getOrderList(req.body.channel_id, req.body.user_name);
+      break;
+    case Boolean(match.getUser):
+      if (SUPPORTS.indexOf(req.body.user_name) === -1)
+        return helper.sendRocketFail('no_permission', req.body.user_name);
+
+      getUser(req.body.user_name);
       break;
   }
 
@@ -760,6 +767,25 @@ function getOrderList(roomId, username) {
     )
     .delay(60000)
     .then(() => fs.unlinkAsync(output))
+    .catch((error) => logger.error(error.message.toString()));
+}
+
+function getUser(username) {
+  sqlite
+    .all(`SELECT id, username, name FROM person WHERE delete_date = 0`)
+    .then((data) => helper.sendRocketSuccess('get_user', username, [data]))
+    .catch((error) =>
+      helper.sendRocketFail('error', username, [
+        {
+          key: 'code',
+          value: 'get_user',
+        },
+        {
+          key: 'database',
+          value: error.message.toString(),
+        },
+      ]),
+    )
     .catch((error) => logger.error(error.message.toString()));
 }
 
