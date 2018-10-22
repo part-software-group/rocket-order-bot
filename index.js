@@ -85,6 +85,7 @@ app.post('/hook/rocket', async (req, res) => {
    * @property lunchNextReset
    * @property getOrderList
    * @property getUser
+   * @property setUser
    * @type {{}}
    */
   const match = {};
@@ -171,6 +172,12 @@ app.post('/hook/rocket', async (req, res) => {
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
       getUser(req.body.user_name);
+      break;
+    case Boolean(match.setUser):
+      if (SUPPORTS.indexOf(req.body.user_name) === -1)
+        return helper.sendRocketFail('no_permission', req.body.user_name);
+
+      setUser({ name: match.setUser[1], username: match.setUser[2] }, req.body.user_name);
       break;
   }
 
@@ -774,6 +781,39 @@ function getUser(username) {
   sqlite
     .all(`SELECT id, username, name FROM person WHERE delete_date = 0`)
     .then((data) => helper.sendRocketSuccess('get_user', username, [data]))
+    .catch((error) =>
+      helper.sendRocketFail('error', username, [
+        {
+          key: 'code',
+          value: 'get_user',
+        },
+        {
+          key: 'database',
+          value: error.message.toString(),
+        },
+      ]),
+    )
+    .catch((error) => logger.error(error.message.toString()));
+}
+
+function setUser(person, username) {
+  let start = false;
+  const param = [person.username.replace('@', '').trim(), person.name, helper.getDate()];
+
+  helper
+    .getUserInfo(person.username)
+    .then(() => (start = true))
+    .catch((error) => {
+      const output = [];
+      output.push({ key: 'code', value: 'set_user' });
+      if (error.message.toString().match(/error-invalid-user/))
+        output.push({ key: 'rocket-chat', value: 'error-invalid-user' });
+      else output.push({ key: 'rocket-chat', value: error.message.toString() });
+
+      return helper.sendRocketFail('error', username, output);
+    })
+    .then(() => (start ? sqlite.all(`INSERT INTO person (username, name, insert_date) VALUES (?, ?, ?)`, param) : null))
+    .then(() => (start ? helper.sendRocketSuccess('set_user', username) : null))
     .catch((error) =>
       helper.sendRocketFail('error', username, [
         {
