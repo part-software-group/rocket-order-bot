@@ -42,7 +42,7 @@ app.post('/hook/rocket', async (req, res) => {
    * @property message_id
    * @property user_name
    */
-  const message = req.body.text.toLowerCase();
+  const message = req.body.text;
   if (
     Object.prototype.hasOwnProperty.call(req.body, 'message') &&
     Object.prototype.hasOwnProperty.call(req.body.message, 'file')
