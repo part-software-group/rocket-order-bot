@@ -21,9 +21,10 @@
       "supports": []
     },
     "order": {
-      "start": "10:30",
-      "end": "11:20",
-      "attempt": 4,
+      "days": ["sat", "sun", "mon", "tue", "wed"],
+      "start": "10:00",
+      "end": "11:00",
+      "attempt": 6,
       "cancel": true
     },
     "excelTemplate": {
