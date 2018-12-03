@@ -8,6 +8,7 @@ const express = require('express');
 const Promise = require('bluebird');
 /**
  * @type {{format}}
+ * @property unix
  */
 const persianDate = require('persian-date');
 const helper = require('./lib/helper');
@@ -167,7 +168,12 @@ app.post('/hook/rocket', async (req, res) => {
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
-      execute.againLunchNext(sqlite, req.body.user_name);
+      helper.checkOrderProcessFinish(
+        sqlite,
+        req.body.user_name,
+        execute.againLunchNext.bind(null, sqlite, req.body.user_name),
+        'lunch_next_again',
+      );
       break;
     case Boolean(match.lunchNextReset):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
@@ -179,7 +185,12 @@ app.post('/hook/rocket', async (req, res) => {
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
-      execute.getOrderList(sqlite, req.body.channel_id, req.body.user_name);
+      helper.checkOrderProcessFinish(
+        sqlite,
+        req.body.user_name,
+        execute.getOrderList.bind(null, sqlite, req.body.channel_id, req.body.user_name),
+        'get_order_list',
+      );
       break;
     case Boolean(match.getUser):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
