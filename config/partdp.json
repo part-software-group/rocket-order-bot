@@ -1,16 +1,12 @@
 {
   "custom": {
     "rocket": {
-      "url": "https://chat.partdp.ir",
+      "url": "",
       "bot": {
         "username": "orderBot",
         "password": ""
       },
-      "supports": [
-        "Mohsen.Alaee",
-        "Masoud.Akhavani",
-        "Mohammadjavad.Lorzei"
-      ]
+      "supports": []
     }
   }
 }
