@@ -84,6 +84,7 @@ app.post('/hook/rocket', async (req, res) => {
    * @property getUser
    * @property setUser
    * @property removeUser
+   * @property changeCurrentOrders
    * @type {{}}
    */
   const match = {};
@@ -212,6 +213,20 @@ app.post('/hook/rocket', async (req, res) => {
 
       execute.removeUser(sqlite, match.removeUser[1], req.body.user_name);
       break;
+    case Boolean(match.changeCurrentOrders): {
+      if (SUPPORTS.indexOf(req.body.user_name) === -1)
+        return helper.sendRocketFail('no_permission', req.body.user_name);
+
+      const hour = Number(match.changeCurrentOrders[1]);
+      const minute = Number(match.changeCurrentOrders[2]);
+      const lunchList = match.changeCurrentOrders[3]
+        .split(/\s(?=(?:[^"']|"[^"]*")*$)/g)
+        .map((v) => (v.substr(0, 1) === '"' ? v.substr(1).slice(0, -1) : v))
+        .join('|');
+
+      execute.changeCurrentOrders(sqlite, hour, minute, lunchList, req.body.user_name);
+      break;
+    }
   }
 
   res.setHeader('Content-Type', 'application/json');

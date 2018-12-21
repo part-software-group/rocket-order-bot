@@ -25,7 +25,8 @@
       "start": "10:00",
       "end": "11:00",
       "attempt": 6,
-      "cancel": true
+      "cancel": true,
+      "minuteLimit": 5
     },
     "excelTemplate": {
       "orderList": {
