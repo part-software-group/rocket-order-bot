@@ -165,17 +165,19 @@ app.post('/hook/rocket', async (req, res) => {
         req.body.message_id,
       );
       break;
-    case Boolean(match.lunchNextAgain):
+    case Boolean(match.lunchNextAgain): {
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
+      const count = Number(match.lunchNextAgain[1] || 1);
       helper.checkOrderProcessFinish(
         sqlite,
         req.body.user_name,
-        execute.againLunchNext.bind(null, sqlite, req.body.user_name),
+        execute.againLunchNext.bind(null, sqlite, req.body.user_name, count),
         'lunch_next_again',
       );
       break;
+    }
     case Boolean(match.lunchNextReset):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
         return helper.sendRocketFail('no_permission', req.body.user_name);
