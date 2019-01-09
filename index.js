@@ -73,7 +73,8 @@ app.post('/hook/rocket', async (req, res) => {
    *
    * @property help
    * @property date
-   * @property getLunchList
+   * @property getDailyPrimaryMenu
+   * @property getDailySecondaryMenu
    * @property getLunchListDate
    * @property setLunchListDate
    * @property removeLunchListDate
@@ -101,11 +102,17 @@ app.post('/hook/rocket', async (req, res) => {
         dateRequest.now.format('YYYY'),
       ]);
       break;
-    case Boolean(match.getLunchList):
+    case Boolean(match.getDailyPrimaryMenu):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
-      execute.getLunchList(sqlite, req.body.user_name);
+      execute.getDailyMenu(sqlite, true, req.body.user_name);
+      break;
+    case Boolean(match.getDailySecondaryMenu):
+      if (SUPPORTS.indexOf(req.body.user_name) === -1)
+        return helper.sendRocketFail('no_permission', req.body.user_name);
+
+      execute.getDailyMenu(sqlite, false, req.body.user_name);
       break;
     case Boolean(match.getLunchListDate):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
@@ -236,9 +243,9 @@ app.post('/hook/rocket', async (req, res) => {
 Promise.resolve()
   .then(() => sqlite.open(config.get('database.order.file'), { Promise }))
   // Update db schema to the latest version using SQL-based migrations
-  .then(() => sqlite.migrate({ force: 'last', migrationsPath: './storage/database/migrations' }))
-  // Finally, launch the Node.js app
-  .finally(() =>
+  .then(() => sqlite.migrate({ migrationsPath: './storage/database/migrations' }))
+  // Launch the Node.js app
+  .then(() =>
     app.listen(PORT, () => {
       require('./lib/schedule')(sqlite);
       logger.info(`Example app listening on port ${PORT}!`);
