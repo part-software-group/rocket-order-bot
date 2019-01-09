@@ -56,6 +56,7 @@ app.post('/hook/rocket', async (req, res) => {
     return;
   }
 
+  let isPrimary;
   let selectDate;
   let selectList;
   const dateRequest = {
@@ -74,7 +75,7 @@ app.post('/hook/rocket', async (req, res) => {
    * @property help
    * @property date
    * @property getDailyMenu
-   * @property getLunchListDate
+   * @property getDailyMenuDate
    * @property setLunchListDate
    * @property removeLunchListDate
    * @property lunchNext
@@ -105,18 +106,21 @@ app.post('/hook/rocket', async (req, res) => {
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
-      execute.getDailyMenu(sqlite, match.getDailyMenu[1] !== 's', req.body.user_name);
+      isPrimary = match.getDailyMenuDate[1] !== 's';
+      execute.getDailyMenu(sqlite, isPrimary, req.body.user_name);
       break;
-    case Boolean(match.getLunchListDate):
+    case Boolean(match.getDailyMenuDate):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
-      selectDate = match.getLunchListDate[1].replace(/[^0-9]+/g, '');
+      isPrimary = match.getDailyMenuDate[1] !== 's';
+      selectDate = match.getDailyMenuDate[2].replace(/[^0-9]+/g, '');
 
-      if (selectDate < 100) execute.getLunchListDate(sqlite, selectDate, req.body.user_name);
+      if (selectDate < 100) execute.getDailyMenuDate(sqlite, isPrimary, selectDate, req.body.user_name);
       else
-        execute.getLunchListDate(
+        execute.getDailyMenuDate(
           sqlite,
+          isPrimary,
           helper.convertDateToPersian(selectDate).format('YYYYMMDD'),
           req.body.user_name,
         );
