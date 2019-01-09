@@ -73,8 +73,7 @@ app.post('/hook/rocket', async (req, res) => {
    *
    * @property help
    * @property date
-   * @property getDailyPrimaryMenu
-   * @property getDailySecondaryMenu
+   * @property getDailyMenu
    * @property getLunchListDate
    * @property setLunchListDate
    * @property removeLunchListDate
@@ -102,17 +101,11 @@ app.post('/hook/rocket', async (req, res) => {
         dateRequest.now.format('YYYY'),
       ]);
       break;
-    case Boolean(match.getDailyPrimaryMenu):
+    case Boolean(match.getDailyMenu):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
-      execute.getDailyMenu(sqlite, true, req.body.user_name);
-      break;
-    case Boolean(match.getDailySecondaryMenu):
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      execute.getDailyMenu(sqlite, false, req.body.user_name);
+      execute.getDailyMenu(sqlite, match.getDailyMenu[1] !== 's', req.body.user_name);
       break;
     case Boolean(match.getLunchListDate):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
