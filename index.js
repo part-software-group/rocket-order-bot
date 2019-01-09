@@ -76,7 +76,7 @@ app.post('/hook/rocket', async (req, res) => {
    * @property date
    * @property getDailyMenu
    * @property getDailyMenuDate
-   * @property setLunchListDate
+   * @property setDailyMenuDate
    * @property removeLunchListDate
    * @property lunchNext
    * @property lunchNextAgain
@@ -125,20 +125,24 @@ app.post('/hook/rocket', async (req, res) => {
           req.body.user_name,
         );
       break;
-    case Boolean(match.setLunchListDate):
+    case Boolean(match.setDailyMenuDate):
       if (SUPPORTS.indexOf(req.body.user_name) === -1)
         return helper.sendRocketFail('no_permission', req.body.user_name);
 
-      selectDate = match.setLunchListDate[1].replace(/[^0-9]+/g, '');
-      selectList = match.setLunchListDate[2]
+      isPrimary = match.setDailyMenuDate[1] !== 's';
+      selectDate = match.setDailyMenuDate[2].replace(/[^0-9]+/g, '');
+      selectList = match.setDailyMenuDate[3]
         .split(/\s(?=(?:[^"']|"[^"]*")*$)/g)
-        .map((v) => (v.substr(0, 1) === '"' ? v.substr(1).slice(0, -1) : v))
-        .join('|');
+        .map((v) => (v.substr(0, 1) === '"' ? v.substr(1).slice(0, -1) : v));
 
-      if (selectDate < 100) execute.addLunchListDate(sqlite, selectDate, selectList, req.body.user_name);
+      if (match.setDailyMenuDate[2].replace(/\s+/g, '') === 'all')
+        execute.setDailyMenuDate(sqlite, isPrimary, 0, selectList, req.body.user_name);
+      else if (selectDate > 9 && selectDate < 100)
+        execute.setDailyMenuDate(sqlite, isPrimary, selectDate, selectList, req.body.user_name);
       else
-        execute.addLunchListDate(
+        execute.setDailyMenuDate(
           sqlite,
+          isPrimary,
           helper.convertDateToPersian(selectDate).format('YYYYMMDD'),
           selectList,
           req.body.user_name,
