@@ -78,7 +78,7 @@ app.post('/hook/rocket', async (req, res) => {
    * @property getDailyMenuDate
    * @property setDailyMenuDate
    * @property delDailyMenuDate
-   * @property lunchNext
+   * @property acceptOrder
    * @property lunchNextAgain
    * @property lunchNextReset
    * @property getOrderList
