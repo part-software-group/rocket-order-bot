@@ -11,7 +11,7 @@ alter table lunch_order rename to user_order;
 alter table person add column platform varchar(50);
 alter table daily add column is_primary char;
 alter table daily add column max_count integer;
-alter table user_order add column menu_id integer;
+alter table person_order add column menu_id integer;
 
 update daily set is_primary = '1';
 update daily set max_count = 1;
@@ -30,8 +30,8 @@ create table if not exists daily_menu (
   delete_date integer             default 0
 );
 
-create table if not exists user_order_menu (
-  user_order_id varchar(225),
+create table if not exists person_order_menu (
+  person_order_menu varchar(225),
   menu_id integer,
   insert_date       integer,
   delete_date integer             default 0
@@ -79,13 +79,13 @@ with recursive split(id, name, rest) as (
 insert into daily_menu (daily_id, menu_id, insert_date)
 select daily_id, menu_id, 20190106000000000 from data;
 
-insert into user_order_menu (user_order_id, menu_id, insert_date, delete_date)
+insert into person_order_menu (person_order_id, menu_id, insert_date, delete_date)
   select
     uo.id,
     m.id,
     uo.insert_date,
     uo.delete_date
-  from user_order uo, menu m
+  from person_order uo, menu m
   where uo.lunch = m.name;
 
 --------------------------------------------------------------------------------
