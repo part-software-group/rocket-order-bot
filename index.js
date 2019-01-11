@@ -91,6 +91,7 @@ app.post('/hook/rocket', async (req, res) => {
   const match = {};
   for (let i = 0; i < regexKeys.length; i++) match[regexKeys[i]] = regex[regexKeys[i]].command.exec(message);
 
+  const args = [sqlite, req.body.user_name];
   switch (true) {
     case Boolean(match.help):
       await helper.sendRocketSuccess('help', req.body.user_name, [regex]);
@@ -102,139 +103,10 @@ app.post('/hook/rocket', async (req, res) => {
         dateRequest.now.format('YYYY'),
       ]);
       break;
-    case Boolean(match.getDailyMenu):
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      isPrimary = match.getDailyMenuDate[1] !== 's';
-      execute.getDailyMenu(sqlite, isPrimary, req.body.user_name);
-      break;
-    case Boolean(match.getDailyMenuDate):
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      isPrimary = match.getDailyMenuDate[1] !== 's';
-      selectDate = match.getDailyMenuDate[2].replace(/[^0-9]+/g, '');
-
-      if (selectDate < 100) execute.getDailyMenuDate(sqlite, isPrimary, selectDate, req.body.user_name);
-      else
-        execute.getDailyMenuDate(
-          sqlite,
-          isPrimary,
-          helper.convertDateToPersian(selectDate).format('YYYYMMDD'),
-          req.body.user_name,
-        );
-      break;
-    case Boolean(match.setDailyMenuDate):
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      isPrimary = match.setDailyMenuDate[1] !== 's';
-      selectDate = match.setDailyMenuDate[2].replace(/[^0-9]+/g, '');
-      selectList = match.setDailyMenuDate[3]
-        .split(/\s(?=(?:[^"']|"[^"]*")*$)/g)
-        .map((v) => (v.substr(0, 1) === '"' ? v.substr(1).slice(0, -1) : v));
-
-      if (match.setDailyMenuDate[2].replace(/\s+/g, '') === 'all')
-        execute.setDailyMenuDate(sqlite, isPrimary, 0, selectList, req.body.user_name);
-      else if (selectDate > 9 && selectDate < 100)
-        execute.setDailyMenuDate(sqlite, isPrimary, selectDate, selectList, req.body.user_name);
-      else
-        execute.setDailyMenuDate(
-          sqlite,
-          isPrimary,
-          helper.convertDateToPersian(selectDate).format('YYYYMMDD'),
-          selectList,
-          req.body.user_name,
-        );
-      break;
-    case Boolean(match.removeLunchListDate):
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      selectDate = match.removeLunchListDate[1].replace(/[^0-9]+/g, '');
-
-      if (selectDate < 100) execute.deleteLunchListDate(sqlite, selectDate, req.body.user_name);
-      else
-        execute.deleteLunchListDate(
-          sqlite,
-          helper.convertDateToPersian(selectDate).format('YYYYMMDD'),
-          req.body.user_name,
-        );
-      break;
-    case Boolean(match.lunchNext):
-      execute.updateLunchNext(
-        sqlite,
-        match.lunchNext[1],
-        match.lunchNext[2],
-        match.lunchNext[3],
-        req.body.user_name,
-        req.body.channel_id,
-        req.body.message_id,
-      );
-      break;
-    case Boolean(match.lunchNextAgain): {
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      const count = Number(match.lunchNextAgain[1] || 1);
-      helper.checkOrderProcessFinish(
-        sqlite,
-        req.body.user_name,
-        execute.againLunchNext.bind(null, sqlite, req.body.user_name, count),
-        'lunch_next_again',
-      );
-      break;
-    }
-    case Boolean(match.lunchNextReset):
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      execute.resetLunchNext(sqlite, match.lunchNextReset[1], req.body.user_name);
-      break;
-    case Boolean(match.getOrderList):
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      helper.checkOrderProcessFinish(
-        sqlite,
-        req.body.user_name,
-        execute.getOrderList.bind(null, sqlite, req.body.channel_id, req.body.user_name),
-        'get_order_list',
-      );
-      break;
-    case Boolean(match.getUser):
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      execute.getUser(sqlite, req.body.user_name);
-      break;
-    case Boolean(match.setUser):
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      execute.setUser(sqlite, { name: match.setUser[1], username: match.setUser[2] }, req.body.user_name);
-      break;
-    case Boolean(match.removeUser):
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      execute.removeUser(sqlite, match.removeUser[1], req.body.user_name);
-      break;
-    case Boolean(match.changeCurrentOrders): {
-      if (SUPPORTS.indexOf(req.body.user_name) === -1)
-        return helper.sendRocketFail('no_permission', req.body.user_name);
-
-      const hour = Number(match.changeCurrentOrders[1]);
-      const minute = Number(match.changeCurrentOrders[2]);
-      const lunchList = match.changeCurrentOrders[3]
-        .split(/\s(?=(?:[^"']|"[^"]*")*$)/g)
-        .map((v) => (v.substr(0, 1) === '"' ? v.substr(1).slice(0, -1) : v))
-        .join('|');
-
-      execute.changeCurrentOrders(sqlite, hour, minute, lunchList, req.body.user_name);
-      break;
-    }
+    default:
+      Object.keys(match)
+        .filter((v) => Array.isArray(match[v]))
+        .map((v) => execute[v].apply(null, args.concat([v]).concat(match[v].slice(1))));
   }
 
   res.setHeader('Content-Type', 'application/json');
