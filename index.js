@@ -19,6 +19,11 @@ const logger = require('./lib/log/winston');
  */
 const command = require('./lib/command');
 const execute = require('./lib/execute');
+const commands = {
+  person: require('./lib/command/person'),
+  dailyMenu: require('./lib/command/dailyMenu'),
+  accept: require('./lib/command/accept'),
+};
 
 const PORT = config.get('server.http.port');
 const SUPPORTS = config.get('custom.rocket.supports');
@@ -43,55 +48,46 @@ app.post('/hook/rocket', async (req, res) => {
     Object.prototype.hasOwnProperty.call(req.body, 'message') &&
     Object.prototype.hasOwnProperty.call(req.body.message, 'file')
   ) {
-    if (SUPPORTS.indexOf(req.body.user_name) === -1) return helper.sendRocketFail('no_permission', req.body.user_name);
+    if (SUPPORTS.indexOf(req.body.user_name) === -1)
+      return helper.sendRocketFail('no_permission', req.body.user_name);
 
     const fileId = req.body.message.file._id;
     const fileName = req.body.message.file.name;
     if (fileName.match(/^set_lunch_list_date.*/g))
       execute.downloadExcelLunch(sqlite, req.body.user_name, fileId, fileName);
-    if (fileName.match(/^set_person_list.*/g)) execute.downloadExcelUser(sqlite, req.body.user_name, fileId, fileName);
+    if (fileName.match(/^set_person_list.*/g))
+      execute.downloadExcelUser(sqlite, req.body.user_name, fileId, fileName);
 
     res.setHeader('Content-Type', 'application/json');
     res.send('{"status": "success"}');
     return;
   }
 
-  let isPrimary;
-  let selectDate;
-  let selectList;
   const dateRequest = {
     now: new persianDate(),
     week: null,
   };
   dateRequest.now.formatPersian = false;
-  dateRequest.week = dateRequest.now.subtract('days', Number(dateRequest.now.format('d')) - 1);
+  dateRequest.week = dateRequest.now.subtract(
+    'days',
+    Number(dateRequest.now.format('d')) - 1,
+  );
   dateRequest.now.formatPersian = true;
   dateRequest.week.formatPersian = true;
 
+  console.log(message);
+  if (message.substr(0, 1) !== '!') {
+    res.setHeader('Content-Type', 'application/json');
+    res.send('{"status": "success"}');
+
+    return;
+  }
   const regex = command(req.body.user_name);
   const regexKeys = Object.keys(regex);
-  /**
-   *
-   * @property help
-   * @property date
-   * @property getDailyMenu
-   * @property getDailyMenuDate
-   * @property setDailyMenuDate
-   * @property delDailyMenuDate
-   * @property acceptOrder
-   * @property lunchNextAgain
-   * @property lunchNextReset
-   * @property getOrderList
-   * @property getUser
-   * @property setUser
-   * @property removeUser
-   * @property changeCurrentOrders
-   * @type {{}}
-   */
   const match = {};
-  for (let i = 0; i < regexKeys.length; i++) match[regexKeys[i]] = regex[regexKeys[i]].command.exec(message);
+  for (let i = 0; i < regexKeys.length; i++)
+    match[regexKeys[i]] = regex[regexKeys[i]].command.exec(message);
 
-  const args = [sqlite, req.body.user_name];
   switch (true) {
     case Boolean(match.help):
       await helper.sendRocketSuccess('help', req.body.user_name, [regex]);
@@ -106,12 +102,33 @@ app.post('/hook/rocket', async (req, res) => {
     default:
       Object.keys(match)
         .filter((v) => Array.isArray(match[v]))
-        .map((v) => execute[v].apply(null, args.concat([v]).concat(match[v].slice(1))));
+        .map((v) => findCommand(req.body, v, match[v][2]));
   }
 
   res.setHeader('Content-Type', 'application/json');
   res.send('{"status": "success"}');
 });
+
+function findCommand(body, cmd, args) {
+  const argv = args
+    .split(/\s(?=(?:[^"']|"[^"]*")*$)/g)
+    .map((v) => (v.substr(0, 1) === '"' ? v.substr(1).slice(0, -1) : v))
+    .filter((v) => v !== '');
+
+  const defaultArgv = [
+    '-u',
+    body.user_name,
+    '--room-id',
+    body.channel_id,
+    '--message-id',
+    body.message_id,
+  ];
+  commands[cmd](`${cmd}${capitalize(argv[0] || '')}`, defaultArgv, argv.splice(1));
+}
+
+function capitalize(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
 
 Promise.resolve()
   .then(() => sqlite.open(config.get('database.order.file'), { Promise }))
@@ -120,7 +137,8 @@ Promise.resolve()
   // Launch the Node.js app
   .then(() =>
     app.listen(PORT, () => {
-      require('./lib/schedule')(sqlite);
+      sqlite.close();
+      // require('./lib/schedule')(sqlite);
       logger.info(`Example app listening on port ${PORT}!`);
     }),
   )
