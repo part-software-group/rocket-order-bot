@@ -2,4 +2,4 @@ parser: flow
 arrowParens: always
 singleQuote: true
 trailingComma: all
-printWidth: 120
+printWidth: 90
