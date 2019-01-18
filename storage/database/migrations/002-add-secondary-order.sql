@@ -11,10 +11,14 @@ alter table lunch_order rename to user_order;
 alter table person add column platform varchar(50);
 alter table daily add column is_primary char;
 alter table daily add column max_count integer;
-alter table person_order add column menu_id integer;
+alter table daily add column priority integer;
+alter table daily add column is_open char;
 
 update daily set is_primary = '1';
 update daily set max_count = 1;
+update daily set priority = 1;
+update daily set is_open = '0';
+update person set platform = 'rocket-chat';
 
 create table if not exists menu (
   id          integer primary key autoincrement,
@@ -31,6 +35,7 @@ create table if not exists daily_menu (
 );
 
 create table if not exists person_order_menu (
+  id          integer primary key autoincrement,
   person_order_menu varchar(225),
   menu_id integer,
   insert_date       integer,
@@ -87,6 +92,21 @@ insert into person_order_menu (person_order_id, menu_id, insert_date, delete_dat
     uo.delete_date
   from person_order uo, menu m
   where uo.lunch = m.name;
+
+drop index person_username_uindex;
+create table person137c
+(
+    id integer primary key autoincrement,
+    username varchar(225),
+    name varchar(225),
+    platform varchar(50),
+    insert_date integer,
+    delete_date integer default 0,
+);
+create unique index person_username_uindex ON person137c (username, delete_date);
+insert into person137c(id, username, name, platform, insert_date, delete_date) select id, username, name, platform, insert_date, delete_date from person;
+drop table person;
+alter table person137c rename to person;
 
 --------------------------------------------------------------------------------
 -- Down
