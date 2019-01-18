@@ -6,7 +6,7 @@ drop index lunch_list_order_date_uindex;
 drop index lunch_order_date_uindex;
 
 alter table lunch_list rename to daily;
-alter table lunch_order rename to user_order;
+alter table lunch_order rename to person_order;
 
 alter table person add column platform varchar(50);
 alter table daily add column is_primary char;
