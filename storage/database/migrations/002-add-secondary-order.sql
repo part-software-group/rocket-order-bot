@@ -10,13 +10,11 @@ alter table lunch_order rename to person_order;
 
 alter table person add column platform varchar(50);
 alter table daily add column is_primary char;
-alter table daily add column max_count integer;
 alter table daily add column priority integer;
 alter table daily add column is_open char;
 alter table person_order add column menu_list text;
 
 update daily set is_primary = '1';
-update daily set max_count = 1;
 update daily set priority = 1;
 update daily set is_open = '0';
 update person set platform = 'rocket-chat';
@@ -31,6 +29,7 @@ create table if not exists menu (
 create table if not exists daily_menu (
   daily_id integer,
   menu_id integer,
+  max_count integer,
   insert_date       integer,
   delete_date integer             default 0
 );
@@ -82,8 +81,8 @@ with recursive split(id, name, rest) as (
     select s.id daily_id, m.id menu_id
     from split s, menu m
     where s.name <> '' and s.name = m.name order by s.id)
-insert into daily_menu (daily_id, menu_id, insert_date)
-select daily_id, menu_id, 20190106000000000 from data;
+insert into daily_menu (daily_id, menu_id, max_count, insert_date)
+select daily_id, menu_id, 1, 20190106000000000 from data;
 
 insert into person_order_menu (person_order_id, menu_id, insert_date, delete_date)
   select

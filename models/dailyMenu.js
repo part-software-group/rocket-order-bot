@@ -18,6 +18,10 @@ class DailyMenu extends Sequelize.Model {
         type: DataTypes.INTEGER,
         field: 'menu_id',
       },
+      maxCount: {
+        type: DataTypes.INTEGER,
+        field: 'max_count',
+      },
       insertDate: {
         type: DataTypes.INTEGER,
         field: 'insert_date',
