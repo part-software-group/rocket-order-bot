@@ -6,13 +6,14 @@ drop index lunch_list_order_date_uindex;
 drop index lunch_order_date_uindex;
 
 alter table lunch_list rename to daily;
-alter table lunch_order rename to user_order;
+alter table lunch_order rename to person_order;
 
 alter table person add column platform varchar(50);
 alter table daily add column is_primary char;
 alter table daily add column max_count integer;
 alter table daily add column priority integer;
 alter table daily add column is_open char;
+alter table person_order add column menu_list text;
 
 update daily set is_primary = '1';
 update daily set max_count = 1;
