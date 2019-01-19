@@ -24,10 +24,6 @@ class Daily extends Sequelize.Model {
         type: DataTypes.CHAR,
         field: 'is_primary',
       },
-      maxCount: {
-        type: DataTypes.INTEGER,
-        field: 'max_count',
-      },
       priority: DataTypes.INTEGER,
       isOpen: {
         type: DataTypes.CHAR,
