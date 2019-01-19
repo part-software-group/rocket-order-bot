@@ -2,8 +2,8 @@
 -- Up
 --------------------------------------------------------------------------------
 
-drop index lunch_list_order_date_uindex;
-drop index lunch_order_date_uindex;
+drop index if exists lunch_list_order_date_uindex;
+drop index if exists lunch_order_date_uindex;
 
 alter table lunch_list rename to daily;
 alter table lunch_order rename to person_order;
@@ -36,7 +36,7 @@ create table if not exists daily_menu (
 
 create table if not exists person_order_menu (
   id          integer primary key autoincrement,
-  person_order_menu varchar(225),
+  person_order_id varchar(225),
   menu_id integer,
   insert_date       integer,
   delete_date integer             default 0
@@ -101,7 +101,7 @@ create table person137c
     name varchar(225),
     platform varchar(50),
     insert_date integer,
-    delete_date integer default 0,
+    delete_date integer default 0
 );
 create unique index person_username_uindex ON person137c (username, delete_date);
 insert into person137c(id, username, name, platform, insert_date, delete_date) select id, username, name, platform, insert_date, delete_date from person;
