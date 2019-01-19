@@ -30,6 +30,10 @@ class PersonOrder extends Sequelize.Model {
         type: DataTypes.STRING(225),
         field: 'rocket_room_id',
       },
+      menuList: {
+        type: DataTypes.TEXT,
+        field: 'menu_list',
+      },
       insertDate: {
         type: DataTypes.INTEGER,
         field: 'insert_date',
@@ -65,6 +69,10 @@ class PersonOrder extends Sequelize.Model {
       required: false,
       where: { deleteDate: { [Op.eq]: 0 } },
     });
+    this.model = {
+      personOrderMenu: models.PersonOrderMenu,
+      menu: models.Menu,
+    };
   }
 
   static checkIdempotent(personId) {
@@ -103,6 +111,52 @@ class PersonOrder extends Sequelize.Model {
       },
       include: this.personOrderMenu,
       order: [['insert_date', 'DESC']],
+    });
+  }
+
+  static getDailyAnalysis() {
+    return this.findAll({
+      where: {
+        insertDate: this._sequelize.where(
+          this._sequelize.literal('`personOrder`.insert_date/1000000000'),
+          '=',
+          Math.trunc(helper.getDate() / 1000000000),
+        ),
+        deleteDate: { [Op.eq]: 0 },
+      },
+      include: [
+        this.person,
+        {
+          model: this.model.personOrderMenu,
+          as: 'personOrderMenu',
+          include: [
+            {
+              model: this.model.menu,
+              as: 'menu',
+            },
+          ],
+        },
+      ],
+      order: [['insert_date', 'DESC']],
+    });
+  }
+
+  /**
+   *
+   * @param {String} oid
+   * @param {Object} messageId
+   * @returns {*}
+   */
+  static updateRocketMessageId(oid, messageId) {
+    return this.getWithId(oid).then((data) => {
+      if (!data) return false;
+
+      const rocketMessageId = JSON.stringify({
+        ...JSON.parse(data.rocketMessageId),
+        ...messageId,
+      });
+
+      return data.update({ rocketMessageId });
     });
   }
 

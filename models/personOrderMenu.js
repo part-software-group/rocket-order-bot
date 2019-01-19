@@ -41,6 +41,7 @@ class PersonOrderMenu extends Sequelize.Model {
       paranoid: false,
       sequelize,
     };
+    this._sequelize = sequelize;
 
     return super.init(table, options);
   }
@@ -53,8 +54,15 @@ class PersonOrderMenu extends Sequelize.Model {
     });
     this.menu = this.belongsTo(models.Menu, {
       as: 'menu',
-      targetKey: 'id',
+      where: { deleteDate: { [Op.eq]: 0 } },
     });
+    this.model = {
+      menu: models.Menu,
+    };
+  }
+
+  static getAssociateMenu() {
+    return this.menu;
   }
 
   static getCountOrderMenu(oid, mid) {
@@ -64,6 +72,24 @@ class PersonOrderMenu extends Sequelize.Model {
         menuId: { [Op.eq]: mid },
         deleteDate: { [Op.eq]: 0 },
       },
+    });
+  }
+
+  static getGroupCountByOrderId(oid) {
+    return this.findAll({
+      where: {
+        personOrderId: { [Op.eq]: oid },
+        deleteDate: { [Op.eq]: 0 },
+      },
+      include: [
+        {
+          model: this.model.menu,
+          as: 'menu',
+          attributes: ['name', [this._sequelize.fn('COUNT', 'name'), 'count']],
+        },
+      ],
+      group: ['person_order_id', 'menu_id'],
+      attributes: ['person_order_id'],
     });
   }
 }

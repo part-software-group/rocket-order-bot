@@ -51,10 +51,9 @@ class Menu extends Sequelize.Model {
       as: 'daily',
       where: { deleteDate: { [Op.eq]: 0 } },
     });
-  }
-
-  static getAssociate() {
-    return this.myAssociation;
+    this.menu = this.hasOne(models.PersonOrderMenu, {
+      as: 'menu',
+    });
   }
 
   static getByName(name) {
