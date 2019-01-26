@@ -22,7 +22,6 @@ const execute = require('./lib/execute');
 const commands = {
   person: require('./lib/command/person'),
   dailyMenu: require('./lib/command/dailyMenu'),
-  accept: require('./lib/command/accept'),
   order: require('./lib/command/order'),
 };
 
