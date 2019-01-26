@@ -92,6 +92,16 @@ class PersonOrderMenu extends Sequelize.Model {
       attributes: ['person_order_id'],
     });
   }
+
+  static resetWithOid(oid, transaction) {
+    return this.update(
+      { deleteDate: helper.getDate() },
+      {
+        where: { deleteDate: { [Op.eq]: 0 }, personOrderId: { [Op.eq]: oid } },
+        transaction,
+      },
+    );
+  }
 }
 
 module.exports = PersonOrderMenu;

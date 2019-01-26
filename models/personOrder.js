@@ -71,6 +71,7 @@ class PersonOrder extends Sequelize.Model {
     });
     this.model = {
       personOrderMenu: models.PersonOrderMenu,
+      person: models.Person,
       menu: models.Menu,
     };
   }
@@ -124,17 +125,29 @@ class PersonOrder extends Sequelize.Model {
         ),
         deleteDate: { [Op.eq]: 0 },
       },
+      group: ['person.id', 'personOrderMenu->menu.name'],
+      attributes: ['menuList'],
       include: [
-        this.person,
+        {
+          model: this.model.person,
+          as: 'person',
+          attributes: ['id', 'name'],
+          where: { deleteDate: { [Op.eq]: 0 } },
+        },
         {
           model: this.model.personOrderMenu,
           as: 'personOrderMenu',
+          attributes: ['id'],
+          required: false,
           include: [
             {
               model: this.model.menu,
               as: 'menu',
+              attributes: ['id', 'name', [this._sequelize.fn('COUNT', 'name'), 'count']],
+              where: { deleteDate: { [Op.eq]: 0 } },
             },
           ],
+          where: { deleteDate: { [Op.eq]: 0 } },
         },
       ],
       order: [['insert_date', 'DESC']],
@@ -167,6 +180,16 @@ class PersonOrder extends Sequelize.Model {
         deleteDate: { [Op.eq]: 0 },
       },
     });
+  }
+
+  static resetWithOid(oid, transaction) {
+    return this.update(
+      { deleteDate: helper.getDate() },
+      {
+        where: { deleteDate: { [Op.eq]: 0 }, id: { [Op.eq]: oid } },
+        transaction,
+      },
+    );
   }
 }
 
