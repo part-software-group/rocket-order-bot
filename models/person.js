@@ -65,6 +65,15 @@ class Person extends Sequelize.Model {
     });
   }
 
+  static getWithId(id) {
+    return this.findOne({
+      where: {
+        id: { [Op.eq]: id },
+        deleteDate: { [Op.eq]: 0 },
+      },
+    });
+  }
+
   static getAll() {
     return this.findAll({
       where: { deleteDate: { [Op.eq]: 0 } },
@@ -73,10 +82,13 @@ class Person extends Sequelize.Model {
   }
 
   static rm(username) {
-    return this.update(
-      { deleteDate: helper.getDate() },
-      { where: { username, deleteDate: { [Op.eq]: 0 } } },
-    );
+    const where = { deleteDate: { [Op.eq]: 0 } };
+
+    if (!isNaN(Number(username))) where.id = Number(username);
+    else if (username.substr(0, 1) === '@') where.username = username.substr(1);
+    else where.username = username;
+
+    return this.update({ deleteDate: helper.getDate() }, { where });
   }
 }
 
