@@ -66,6 +66,16 @@ class Menu extends Sequelize.Model {
     });
   }
 
+  static getByIdlist(id) {
+    return this.findAll({
+      where: {
+        id,
+        deleteDate: { [Op.eq]: 0 },
+      },
+      order: [['insert_date', 'DESC']],
+    });
+  }
+
   static getWithId(id) {
     return this.findOne({
       where: {
