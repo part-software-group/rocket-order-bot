@@ -13,20 +13,18 @@ const Promise = require('bluebird');
 const persianDate = require('persian-date');
 const helper = require('./lib/helper');
 const logger = require('./lib/log/winston');
-/**
- *
- * @type {*[]}
- */
-const command = require('./lib/command');
 const execute = require('./lib/execute');
+const program = require('commander');
 const commands = {
-  person: require('./lib/command/person'),
-  dailyMenu: require('./lib/command/dailyMenu'),
+  default: require('./lib/command/default'),
+  menu: require('./lib/command/menu'),
   order: require('./lib/command/order'),
+  person: require('./lib/command/person'),
 };
 
 const PORT = config.get('server.http.port');
 const SUPPORTS = config.get('custom.rocket.supports');
+const SECURE = config.get('custom.commandSecure');
 
 /**
  * @property use
@@ -82,35 +80,73 @@ app.post('/hook/rocket', async (req, res) => {
 
     return;
   }
-  const regex = command(req.body.user_name);
-  const regexKeys = Object.keys(regex);
-  const match = {};
-  for (let i = 0; i < regexKeys.length; i++)
-    match[regexKeys[i]] = regex[regexKeys[i]].command.exec(message);
+  // const regex = command(req.body.user_name);
+  // const regexKeys = Object.keys(regex);
+  // const match = {};
+  // for (let i = 0; i < regexKeys.length; i++)
+  //   match[regexKeys[i]] = regex[regexKeys[i]].command.exec(message);
 
   switch (true) {
-    case Boolean(match.help):
-      await helper.sendRocketSuccess('help', req.body.user_name, [regex]);
+    case Boolean(message.match(/^!(0|help)\r*\n*\s*$/)): {
+      const helps = [];
+      const commandKeys = Object.keys(commands);
+      let aliasNum = 0;
+
+      helps.push({
+        name: `help`,
+        description: `لیست دستورات`,
+        sample: `!help`,
+        index: aliasNum++,
+      });
+      helps.push({
+        name: `date`,
+        description: `نمایش تاریخ و زمان سرور`,
+        sample: `!date`,
+        index: aliasNum++,
+      });
+
+      for (let i = 0; i < program.commands.length; i++) {
+        if (
+          SUPPORTS.indexOf(req.body.user_name) === -1 &&
+          SECURE.indexOf(program.commands[i]._name) !== -1
+        )
+          continue;
+        else if (program.commands[i]._name.match(/Help$/)) continue;
+
+        if (commandKeys.indexOf(program.commands[i]._name) !== -1)
+          helps.push({
+            name: program.commands[i]._name,
+            description: program.commands[i]._description,
+            sample: ``,
+            hasHelp: true,
+          });
+      }
+      await helper.sendRocketSuccess('help', req.body.user_name, helps);
       break;
-    case Boolean(match.date):
+    }
+    case Boolean(message.match(/^!(1|date)\r*\n*\s*$/)):
       await helper.sendRocketSuccess('date', req.body.user_name, [
         dateRequest.now.format('dddd DD-MM-YYYY'),
         dateRequest.week.format('w'),
         dateRequest.now.format('YYYY'),
       ]);
       break;
-    default:
-      Object.keys(match)
-        .filter((v) => Array.isArray(match[v]))
-        .map((v) => findCommand(req.body, v, match[v][2]));
+    default: {
+      const match = /^!([a-zA-Z]+)\s+(.*)/.exec(message);
+      if (!Array.isArray(match)) break;
+      if (!Object.hasOwnProperty.call(commands, match[1])) break;
+      if (match[1] === 'default') break;
+
+      findCommand(req.body, match[1], match[2]);
+    }
   }
 
   res.setHeader('Content-Type', 'application/json');
   res.send('{"status": "success"}');
 });
 
-function findCommand(body, cmd, args) {
-  const argv = args
+function findCommand(body, name, args) {
+  const list = args
     .split(/\s(?=(?:[^"']|"[^"]*")*$)/g)
     .map((v) => (v.substr(0, 1) === '"' ? v.substr(1).slice(0, -1) : v))
     .filter((v) => v !== '');
@@ -123,7 +159,26 @@ function findCommand(body, cmd, args) {
     '--message-id',
     body.message_id,
   ];
-  commands[cmd](`${cmd}${capitalize(argv[0] || '')}`, defaultArgv, argv.splice(1));
+  const list0 = list[0] || '';
+  const list1 = list[1] || '';
+  let argv = [];
+  let cmd;
+
+  if (list0.match(/^(--help|-h)/)) {
+    cmd = `customHelp`;
+    argv.push(`${name}-this`);
+  } else if (list0.match(/[^-]+/) && list1.match(/^(--help|-h)/)) {
+    cmd = `customHelp`;
+    argv.push(`${name}${capitalize(list0)}`);
+  } else {
+    cmd = `${name}${capitalize(list0)}`;
+    argv = list.splice(1);
+  }
+
+  if (SUPPORTS.indexOf(body.user_name) === -1 && SECURE.indexOf(cmd) !== -1)
+    return helper.sendRocketFail('no_permission', body.user_name);
+
+  commands.default(cmd, defaultArgv, argv);
 }
 
 function capitalize(string) {
