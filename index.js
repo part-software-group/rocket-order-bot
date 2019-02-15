@@ -80,16 +80,24 @@ app.post('/hook/rocket', async (req, res) => {
 
     return;
   }
-  // const regex = command(req.body.user_name);
-  // const regexKeys = Object.keys(regex);
-  // const match = {};
-  // for (let i = 0; i < regexKeys.length; i++)
-  //   match[regexKeys[i]] = regex[regexKeys[i]].command.exec(message);
+
+  const commandKeys = Object.keys(commands);
+  let programAlias = 2;
+  for (let i = 0; i < program.commands.length; i++) {
+    if (
+      SUPPORTS.indexOf(req.body.user_name) === -1 &&
+      SECURE.indexOf(program.commands[i]._name) !== -1
+    )
+      continue;
+    else if (program.commands[i]._name.match(/Help$/)) continue;
+
+    if (commandKeys.indexOf(program.commands[i]._name) === -1)
+      program.commands[i].alias(programAlias++);
+  }
 
   switch (true) {
     case Boolean(message.match(/^!(0|help)\r*\n*\s*$/)): {
       const helps = [];
-      const commandKeys = Object.keys(commands);
       let aliasNum = 0;
 
       helps.push({
@@ -132,12 +140,29 @@ app.post('/hook/rocket', async (req, res) => {
       ]);
       break;
     default: {
-      const match = /^!([a-zA-Z]+)\s+(.*)/.exec(message);
-      if (!Array.isArray(match)) break;
-      if (!Object.hasOwnProperty.call(commands, match[1])) break;
-      if (match[1] === 'default') break;
+      const match = { name: '', args: '', alias: false };
+      const aliasMatch = /^!([0-9]+)\s*(.*)/.exec(message);
+      if (Array.isArray(aliasMatch)) {
+        for (let i = 0; i < program.commands.length; i++)
+          if (program.commands[i]._alias === Number(aliasMatch[1])) {
+            match.name = program.commands[i]._name;
+            match.args = aliasMatch[2];
+            match.alias = true;
+            break;
+          }
+      } else {
+        const cmdMatch = /^!([a-zA-Z]+)\s+(.*)/.exec(message);
+        if (!Array.isArray(cmdMatch)) break;
+        if (!Object.hasOwnProperty.call(commands, cmdMatch[1])) break;
+        if (cmdMatch[1] === 'default') break;
 
-      findCommand(req.body, match[1], match[2]);
+        match.name = cmdMatch[1];
+        match.args = cmdMatch[2];
+      }
+
+      if (!match.name) break;
+
+      findCommand(req.body, match.name, match.args, match.alias);
     }
   }
 
@@ -145,7 +170,7 @@ app.post('/hook/rocket', async (req, res) => {
   res.send('{"status": "success"}');
 });
 
-function findCommand(body, name, args) {
+function findCommand(body, name, args, isAlias) {
   const list = args
     .split(/\s(?=(?:[^"']|"[^"]*")*$)/g)
     .map((v) => (v.substr(0, 1) === '"' ? v.substr(1).slice(0, -1) : v))
@@ -166,10 +191,13 @@ function findCommand(body, name, args) {
 
   if (list0.match(/^(--help|-h)/)) {
     cmd = `customHelp`;
-    argv.push(`${name}-this`);
+    argv.push(!isAlias ? `${name}-this` : name);
   } else if (list0.match(/[^-]+/) && list1.match(/^(--help|-h)/)) {
     cmd = `customHelp`;
     argv.push(`${name}${capitalize(list0)}`);
+  } else if (isAlias) {
+    cmd = name;
+    argv = list;
   } else {
     cmd = `${name}${capitalize(list0)}`;
     argv = list.splice(1);
