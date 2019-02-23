@@ -221,7 +221,7 @@ Promise.resolve()
   .then(() =>
     app.listen(PORT, () => {
       sqlite.close();
-      // require('./lib/schedule')(sqlite);
+      require('./lib/schedule')(sqlite);
       logger.info(`Example app listening on port ${PORT}!`);
     }),
   )
