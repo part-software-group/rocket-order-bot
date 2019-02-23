@@ -126,7 +126,7 @@ class PersonOrder extends Sequelize.Model {
         deleteDate: { [Op.eq]: 0 },
       },
       group: ['person.id', 'personOrderMenu->menu.name'],
-      attributes: ['menuList'],
+      attributes: ['rocketMessageId', 'menuList'],
       include: [
         {
           model: this.model.person,
