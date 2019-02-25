@@ -37,7 +37,6 @@ class PersonOrder extends Sequelize.Model {
       insertDate: {
         type: DataTypes.INTEGER,
         field: 'insert_date',
-        defaultValue: helper.getDate(),
       },
       deleteDate: {
         type: DataTypes.INTEGER,
