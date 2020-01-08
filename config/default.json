@@ -32,6 +32,20 @@
       "orderList": {
         "fa": "./storage/private/order_list.fa.xlsx"
       }
-    }
+    },
+    "commandSecure": [
+      "menu",
+      "menuHelp",
+      "menuGet",
+      "menuAdd",
+      "person",
+      "personHelp",
+      "personGet",
+      "personAdd",
+      "personRm",
+      "orderExcel",
+      "orderReset",
+      "orderResend"
+    ]
   }
 }

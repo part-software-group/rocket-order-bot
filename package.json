@@ -1,6 +1,6 @@
 {
   "name": "rocket-order-bot",
-  "version": "0.13.1",
+  "version": "1.7.3",
   "main": "./index.js",
   "scripts": {
     "postinstall": "npm run build",
@@ -17,19 +17,22 @@
     "watch": "node ./scripts/watch.js"
   },
   "dependencies": {
-    "xlsx": "^0.14.0",
-    "uuid": "^3.3.2",
     "async": "^2.6.1",
+    "bluebird": "^3.5.2",
+    "body-parser": "^1.18.3",
+    "commander": "^2.19.0",
     "config": "^2.0.1",
     "express": "^4.16.3",
-    "sqlite": "^3.0.0",
-    "request-promise": "^4.2.2",
-    "bluebird": "^3.5.2",
-    "winston": "^3.1.0",
-    "persian-date": "^1.0.5",
-    "body-parser": "^1.18.3",
     "node-schedule": "^1.3.0",
-    "xlsx-populate": "^1.17.0"
+    "persian-date": "^1.0.5",
+    "request-promise": "^4.2.2",
+    "sequelize": "^4.42.0",
+    "sqlite": "^3.0.0",
+    "sqlite3": "^4.0.6",
+    "uuid": "^3.3.2",
+    "winston": "^3.1.0",
+    "xlsx": "^0.14.0",
+    "xlsx-populate": "^1.19.0"
   },
   "devDependencies": {
     "@babel/cli": "7.0.0",
